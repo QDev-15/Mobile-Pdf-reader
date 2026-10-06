@@ -19,6 +19,20 @@ public static class AdsPolicy
 {
     public static readonly TimeSpan MinInterval = TimeSpan.FromHours(1);
 
+    /// <summary>A PDF is opened every Nth time straight from another app (a file manager, a chat attachment)
+    /// instead of through the Dashboard.</summary>
+    public const int ExternalOpensPerInterstitial = 6;
+
+    /// <summary>Counts one PDF opened from another app (the app launches directly into the reader, so there
+    /// is no natural transition before it): the first 5 opens are free, the 6th shows an interstitial and
+    /// starts the count again. Returns the count to persist. Never shows for Pro.</summary>
+    public static (int NextCount, bool ShowInterstitial) AtExternalOpen(int openCount, bool isPro)
+    {
+        if (isPro) return (openCount, false);
+        int next = openCount + 1;
+        return next >= ExternalOpensPerInterstitial ? (0, true) : (next, false);
+    }
+
     /// <summary>Call at a natural screen transition (a file is closed, or a new one is about to open).
     /// Returns the state to persist and whether an interstitial should be shown now. Never true when
     /// <paramref name="isPro"/> -- callers do not need to check separately.</summary>

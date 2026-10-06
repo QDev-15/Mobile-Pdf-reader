@@ -4,4 +4,7 @@
     <Project Path="src/PdfReader.Core/PdfReader.Core.csproj" />
     <Project Path="src/PdfReader/PdfReader.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PdfReader.Core.Tests/PdfReader.Core.Tests.csproj" />
+  </Folder>
 </Solution>

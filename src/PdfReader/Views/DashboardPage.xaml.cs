@@ -6,39 +6,41 @@ namespace PdfReader.Views;
 public partial class DashboardPage : ContentPage
 {
 	private readonly RecentPdfStore _store;
+	private readonly PdfLibrary _library;
+	private readonly PdfOpener _opener;
+	private IReadOnlyList<RecentPdfRecord> _all = [];
+	private DateTime _lastBackPress = DateTime.MinValue;
 
-	public DashboardPage(RecentPdfStore store)
+	public DashboardPage(RecentPdfStore store, PdfLibrary library, PdfOpener opener)
 	{
 		InitializeComponent();
 		_store = store;
+		_library = library;
+		_opener = opener;
 	}
 
 	protected override async void OnAppearing()
 	{
 		base.OnAppearing();
-		PendingPdfOpen.Changed += OnPendingChanged;
+		Banner.Reattach();
 		await ReloadListAsync();
-
-		// Cold start via "Open with" / "Share": MainActivity.OnCreate already stashed the Uri before
-		// this page existed.
-		string? pending = PendingPdfOpen.Consume();
-		if (pending != null) await OpenAsync(pending);
 	}
 
-	protected override void OnDisappearing()
+	/// <summary>Back on the Dashboard closes what is open first (pop-up, search), and only exits the app on a
+	/// second press within two seconds, so one stray tap cannot throw the person out.</summary>
+	protected override bool OnBackButtonPressed()
 	{
-		base.OnDisappearing();
-		PendingPdfOpen.Changed -= OnPendingChanged;
-	}
-
-	// LaunchMode.SingleTop: app already running, Dashboard already the visible page -- OnAppearing will
-	// not fire again, so handle the hand-off here instead.
-	private void OnPendingChanged() =>
-		MainThread.BeginInvokeOnMainThread(async () =>
+		if (Dialogs.TryDismiss()) return true;
+		if (SearchRow.IsVisible)
 		{
-			string? pending = PendingPdfOpen.Consume();
-			if (pending != null) await OpenAsync(pending);
-		});
+			CloseSearch();
+			return true;
+		}
+		if (DateTime.UtcNow - _lastBackPress < TimeSpan.FromSeconds(2)) return false; // let Android close the app
+		_lastBackPress = DateTime.UtcNow;
+		this.Toast("Nhấn Back lần nữa để thoát");
+		return true;
+	}
 
 	private async void OnOpenPdfClicked(object? sender, EventArgs e)
 	{
@@ -49,53 +51,75 @@ public partial class DashboardPage : ContentPage
 				PickerTitle = "Chọn PDF",
 				FileTypes = FilePickerFileType.Pdf,
 			});
-			if (result != null) await OpenAsync(result.FullPath, result.FileName);
+			if (result != null) await _opener.OpenAsync(result.FullPath, result.FileName);
 		}
 		catch (Exception ex)
 		{
-			await DisplayAlert("Không mở được PDF", ex.Message, "Đóng");
+			await this.AlertAsync("Không mở được PDF", ex.Message, "Đóng");
 		}
 	}
+
+	private async void OnSettingsClicked(object? sender, EventArgs e) => await UiHost.Shell.GoToAsync(nameof(SettingsPage));
 
 	private async void OnItemSelected(object? sender, SelectionChangedEventArgs e)
 	{
 		RecentListItem? item = e.CurrentSelection.FirstOrDefault() as RecentListItem;
 		RecentList.SelectedItem = null;
-		if (item != null) await OpenAsync(item.Uri, item.DisplayName);
+		if (item != null) await _opener.OpenAsync(item.Uri, item.DisplayName);
 	}
 
-	private async Task OpenAsync(string uriOrPath, string? displayName = null)
+	private async void OnDeleteInvoked(object? sender, EventArgs e)
 	{
-		try
-		{
-			int pageCount;
-			using (PdfPages pages = PdfPages.Open(uriOrPath)) pageCount = pages.Count;
-
-			RecentPdfRecord record = await _store.RecordOpenedAsync(uriOrPath, displayName ?? GuessDisplayName(uriOrPath), pageCount);
-			await Shell.Current.GoToAsync(nameof(ReaderPage), new Dictionary<string, object>
-			{
-				["uri"] = record.Uri,
-				["displayName"] = record.DisplayName,
-			});
-		}
-		catch (Exception ex)
-		{
-			await DisplayAlert("Không mở được PDF", ex.Message, "Đóng");
-		}
+		if ((sender as BindableObject)?.BindingContext is not RecentListItem item) return;
+		bool ok = await this.AlertAsync("Xoá khỏi danh sách", $"Xoá \"{item.DisplayName}\" khỏi danh sách và xoá bản sao trong ứng dụng? (File gốc trong máy không bị ảnh hưởng.)", "Xoá", "Huỷ");
+		if (!ok) return;
+		await _store.RemoveAsync(item.Uri);
+		if (_library.IsInLibrary(item.Uri)) _library.DeleteDocument(item.Uri);
+		await ReloadListAsync();
 	}
 
-	private static string GuessDisplayName(string uriOrPath)
+	// ------------------------------------------------------------------ search
+
+	private void OnSearchClicked(object? sender, EventArgs e)
 	{
-		string last = uriOrPath.TrimEnd('/').Split('/').LastOrDefault() ?? uriOrPath;
-		return Uri.UnescapeDataString(last);
+		SearchRow.IsVisible = !SearchRow.IsVisible;
+		if (SearchRow.IsVisible) SearchEntry.Focus();
+		else CloseSearch();
 	}
+
+	private void OnSearchCloseClicked(object? sender, EventArgs e) => CloseSearch();
+
+	private void CloseSearch()
+	{
+		SearchEntry.Text = "";
+		SearchEntry.Unfocus();
+		SearchRow.IsVisible = false;
+		ApplyFilter();
+	}
+
+	private void OnSearchTextChanged(object? sender, TextChangedEventArgs e) => ApplyFilter();
+
+	// ------------------------------------------------------------------ list
 
 	private async Task ReloadListAsync()
 	{
-		IReadOnlyList<RecentPdfRecord> records = await _store.ListAsync();
-		CountLabel.Text = $"{records.Count} tài liệu";
-		EmptyLabel.IsVisible = records.Count == 0;
-		RecentList.ItemsSource = records.Select(r => new RecentListItem(r)).ToList();
+		_all = await _store.ListAsync();
+		ApplyFilter();
+	}
+
+	private void ApplyFilter()
+	{
+		string query = SearchEntry.Text?.Trim() ?? "";
+		IEnumerable<RecentPdfRecord> shown = _all;
+		if (query.Length > 0)
+		{
+			string q = PdfReader.Core.Text.TextSearch.Fold(query, ignoreAccents: true);
+			shown = _all.Where(r => PdfReader.Core.Text.TextSearch.Fold(r.DisplayName, ignoreAccents: true).Contains(q));
+		}
+		List<RecentListItem> items = shown.Select(r => new RecentListItem(r)).ToList();
+		RecentList.ItemsSource = items;
+		EmptyBox.IsVisible = items.Count == 0;
+		EmptyLabel.Text = _all.Count == 0 ? "Chưa có PDF nào" : "Không có file nào khớp";
 	}
 
 	private sealed class RecentListItem(RecentPdfRecord record)
@@ -103,17 +127,16 @@ public partial class DashboardPage : ContentPage
 		public string Uri => record.Uri;
 		public string DisplayName => record.DisplayName;
 		public string? ThumbnailPath => record.ThumbnailPath;
-		public double ProgressFraction => Math.Clamp(record.ReadProgress, 0, 1);
-		public string MetaText => $"{record.PageCount} trang · {FormatWhen(record.LastOpenedUtc)} · {(int)Math.Round(record.ReadProgress * 100)}%";
+		public string MetaText => $"{record.PageCount} trang · {FormatWhen(record.LastOpenedUtc)}";
 
 		private static string FormatWhen(DateTimeOffset whenUtc)
 		{
 			TimeSpan age = DateTimeOffset.UtcNow - whenUtc;
 			if (age < TimeSpan.FromMinutes(1)) return "vừa xong";
-			if (age < TimeSpan.FromHours(1)) return $"mở {(int)age.TotalMinutes} phút trước";
-			if (age < TimeSpan.FromDays(1)) return $"mở {(int)age.TotalHours} giờ trước";
-			if (age < TimeSpan.FromDays(2)) return "mở hôm qua";
-			return $"mở {(int)age.TotalDays} ngày trước";
+			if (age < TimeSpan.FromHours(1)) return $"{(int)age.TotalMinutes} phút trước";
+			if (age < TimeSpan.FromDays(1)) return $"{(int)age.TotalHours} giờ trước";
+			if (age < TimeSpan.FromDays(2)) return "hôm qua";
+			return $"{(int)age.TotalDays} ngày trước";
 		}
 	}
 }

@@ -32,5 +32,18 @@ public sealed class AdBannerSurface : View
 		if (_ads != null) _ads.Changed -= Apply;
 	}
 
+	/// <summary>Moves the shared native banner into this page. Call from the page's OnAppearing.</summary>
+	public void Reattach()
+	{
+		(Handler as PdfReader.Platforms.Android.AdBannerSurfaceHandler)?.Reattach();
+		Apply();
+		// The native view of a page that has only just appeared may not exist yet: try again a moment later.
+		Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(600), () =>
+		{
+			(Handler as PdfReader.Platforms.Android.AdBannerSurfaceHandler)?.Reattach();
+			Apply();
+		});
+	}
+
 	private void Apply() => IsVisible = _ads is { ShowAds: true, IsBannerLoaded: true };
 }

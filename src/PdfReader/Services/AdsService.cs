@@ -31,11 +31,16 @@ public interface IAdsService
     /// original "every hour" idea). Shows an interstitial when <see cref="AdsPolicy"/> says it is due
     /// and one happens to be ready; otherwise this cycle is skipped quietly.</summary>
     void RegisterScreenTransition();
+
+    /// <summary>A PDF was just opened straight from another app. Every 6th such open shows an interstitial
+    /// (see <see cref="AdsPolicy.AtExternalOpen"/>).</summary>
+    void RegisterExternalOpen();
 }
 
 public sealed class AdsService : IAdsService
 {
     private const string StateKey = "ads_last_interstitial_utc_ticks";
+    private const string ExternalKey = "ads_external_open_count";
 
     private readonly ILicenseService _license;
     private readonly IInterstitialAdService _interstitial;
@@ -64,10 +69,31 @@ public sealed class AdsService : IAdsService
     public void RegisterScreenTransition()
     {
         long ticks = Preferences.Default.Get(StateKey, 0L);
+        if (ticks == 0)
+        {
+            // First transition ever: start the one-hour clock now instead of greeting a brand-new user
+            // with an ad before they have read anything.
+            Preferences.Default.Set(StateKey, DateTimeOffset.UtcNow.UtcTicks);
+            PrepareInterstitial();
+            return;
+        }
         var state = new AdsState(ticks == 0 ? null : new DateTimeOffset(ticks, TimeSpan.Zero));
         (AdsState next, bool show) = AdsPolicy.AtScreenTransition(state, _license.State.IsPro, DateTimeOffset.UtcNow);
         Preferences.Default.Set(StateKey, next.LastShownUtc?.UtcTicks ?? 0L);
 
+        if (show && _interstitial.IsAdLoaded)
+        {
+            try { _interstitial.ShowAd(); }
+            catch (Exception ex) { Android.Util.Log.Warn("PdfReader", $"ads: interstitial show failed: {ex.Message}"); }
+        }
+        PrepareInterstitial();
+    }
+
+    public void RegisterExternalOpen()
+    {
+        int count = Preferences.Default.Get(ExternalKey, 0);
+        (int next, bool show) = AdsPolicy.AtExternalOpen(count, _license.State.IsPro);
+        Preferences.Default.Set(ExternalKey, next);
         if (show && _interstitial.IsAdLoaded)
         {
             try { _interstitial.ShowAd(); }

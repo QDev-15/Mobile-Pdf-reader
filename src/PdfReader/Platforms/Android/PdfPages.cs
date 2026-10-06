@@ -40,6 +40,33 @@ public sealed class PdfPages : IDisposable
 
 	public int Count => _renderer.PageCount;
 
+	/// <summary>Size of every page in PDF points (1/72 inch), rotation already applied.</summary>
+	public (int Width, int Height)[] MeasureAll()
+	{
+		var sizes = new (int, int)[Count];
+		MeasureInto(sizes, 0, sizes.Length);
+		return sizes;
+	}
+
+	/// <summary>Measures pages <paramref name="from"/> .. <paramref name="to"/> (exclusive) into <paramref name="sizes"/>.
+	/// Takes the renderer lock per small batch, not for the whole range, so rendering the pages on screen is
+	/// never held up behind a long measuring pass.</summary>
+	public void MeasureInto((int Width, int Height)[] sizes, int from, int to)
+	{
+		for (int start = from; start < to; start += 16)
+		{
+			lock (_lock)
+			{
+				for (int i = start; i < Math.Min(to, start + 16); i++)
+				{
+					PdfRenderer.Page page = _renderer.OpenPage(i);
+					try { sizes[i] = (Math.Max(1, page.Width), Math.Max(1, page.Height)); }
+					finally { page.Close(); page.Dispose(); }
+				}
+			}
+		}
+	}
+
 	/// <summary>Page <paramref name="index"/> on white, its long edge <paramref name="longEdge"/> pixels.</summary>
 	public Bitmap Render(int index, int longEdge)
 	{
@@ -51,11 +78,7 @@ public sealed class PdfPages : IDisposable
 			try
 			{
 				double scale = (double)longEdge / Math.Max(page.Width, page.Height);
-				int w = Math.Max(1, (int)Math.Round(page.Width * scale)), h = Math.Max(1, (int)Math.Round(page.Height * scale));
-				Bitmap bitmap = Bitmap.CreateBitmap(w, h, Bitmap.Config.Argb8888!)!;
-				bitmap.EraseColor(Android.Graphics.Color.White);
-				page.Render(bitmap, null, null, PdfRenderMode.ForDisplay);
-				return bitmap;
+				return RenderCore(page, scale, 0, 0, Math.Max(1, (int)Math.Round(page.Width * scale)), Math.Max(1, (int)Math.Round(page.Height * scale)));
 			}
 			finally
 			{
@@ -63,6 +86,73 @@ public sealed class PdfPages : IDisposable
 				page.Dispose();
 			}
 		}
+	}
+
+	/// <summary>Whole page, <paramref name="widthPx"/> pixels wide (height follows the page's own aspect).</summary>
+	public Bitmap RenderFitWidth(int index, int widthPx)
+	{
+		lock (_lock)
+		{
+			PdfRenderer.Page page = _renderer.OpenPage(index);
+			try
+			{
+				double scale = (double)widthPx / page.Width;
+				return RenderCore(page, scale, 0, 0, widthPx, Math.Max(1, (int)Math.Round(page.Height * scale)));
+			}
+			finally
+			{
+				page.Close();
+				page.Dispose();
+			}
+		}
+	}
+
+	/// <summary>Whole page at <paramref name="dpi"/> dots per inch.</summary>
+	public Bitmap RenderAtDpi(int index, int dpi)
+	{
+		lock (_lock)
+		{
+			PdfRenderer.Page page = _renderer.OpenPage(index);
+			try
+			{
+				double scale = dpi / 72.0;
+				return RenderCore(page, scale, 0, 0, Math.Max(1, (int)Math.Round(page.Width * scale)), Math.Max(1, (int)Math.Round(page.Height * scale)));
+			}
+			finally
+			{
+				page.Close();
+				page.Dispose();
+			}
+		}
+	}
+
+	/// <summary>A window onto a page at a given zoom: <paramref name="pxPerPoint"/> pixels per PDF point, the
+	/// window's top-left at (<paramref name="leftPt"/>, <paramref name="topPt"/>) points on the page, its size
+	/// <paramref name="outW"/> x <paramref name="outH"/> pixels. How the viewer gets a sharp close-up of the
+	/// part of a page on screen without rendering the whole page at that size.</summary>
+	public Bitmap RenderRegion(int index, double pxPerPoint, double leftPt, double topPt, int outW, int outH)
+	{
+		lock (_lock)
+		{
+			PdfRenderer.Page page = _renderer.OpenPage(index);
+			try { return RenderCore(page, pxPerPoint, leftPt, topPt, outW, outH); }
+			finally
+			{
+				page.Close();
+				page.Dispose();
+			}
+		}
+	}
+
+	private static Bitmap RenderCore(PdfRenderer.Page page, double scale, double leftPt, double topPt, int w, int h)
+	{
+		Bitmap bitmap = Bitmap.CreateBitmap(w, h, Bitmap.Config.Argb8888!)!;
+		bitmap.EraseColor(Android.Graphics.Color.White);
+		var matrix = new Matrix();
+		matrix.SetScale((float)scale, (float)scale);
+		matrix.PostTranslate((float)(-leftPt * scale), (float)(-topPt * scale));
+		page.Render(bitmap, null, matrix, PdfRenderMode.ForDisplay);
+		return bitmap;
 	}
 
 	public void Dispose()

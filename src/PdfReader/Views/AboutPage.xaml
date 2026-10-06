@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="PdfReader.Views.AboutPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:PdfReader.Views"
+    Title="Thông tin ứng dụng"
+    BackgroundColor="{StaticResource MilkBackground}">
+
+    <ContentPage.Resources>
+        <Style x:Key="Section" TargetType="Label">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontFamily" Value="OpenSansSemibold" />
+            <Setter Property="Margin" Value="18,18,18,6" />
+            <Setter Property="TextColor" Value="{StaticResource Primary}" />
+        </Style>
+        <Style x:Key="Body" TargetType="Label">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="LineHeight" Value="1.25" />
+            <Setter Property="TextColor" Value="{StaticResource OffBlack}" />
+        </Style>
+        <Style x:Key="Card" TargetType="VerticalStackLayout">
+            <Setter Property="BackgroundColor" Value="{StaticResource White}" />
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="Spacing" Value="8" />
+        </Style>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="*,Auto">
+    <ScrollView>
+        <VerticalStackLayout Padding="0,0,0,28">
+
+            <!-- Header -->
+            <VerticalStackLayout Padding="16,28,16,12" Spacing="6" HorizontalOptions="Center">
+                <!-- The app icon (the image is the rounded blue tile itself) -->
+                <Image Source="logo.png" WidthRequest="88" HeightRequest="88" HorizontalOptions="Center" />
+                <Label Text="PDF Reader" FontSize="24" FontFamily="OpenSansSemibold" HorizontalOptions="Center" />
+                <Label x:Name="VersionLabel" FontSize="13" HorizontalOptions="Center"
+                       TextColor="{StaticResource InkSoft}" />
+                <Label Text="Đọc, tìm chữ, nhận dạng chữ (OCR), chú thích, ký và quản lý trang PDF ngay trên điện thoại." FontSize="13"
+                       HorizontalOptions="Center" HorizontalTextAlignment="Center"
+                       TextColor="{StaticResource InkSoft}" />
+            </VerticalStackLayout>
+
+            <Label Text="TÁC GIẢ VÀ LIÊN HỆ" Style="{StaticResource Section}" />
+            <VerticalStackLayout Style="{StaticResource Card}">
+                <Label Text="Tác giả: Nguyễn Hữu Quỳnh" FontSize="15" FontFamily="OpenSansSemibold" />
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnEmail" />
+                    </Grid.GestureRecognizers>
+                    <Label Text="{x:Static views:Icons.Mail}" FontFamily="Icons" FontSize="20" TextColor="{StaticResource Primary}" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="nguyenquynhvp.ictu@gmail.com" FontSize="14" TextDecorations="Underline"
+                           TextColor="{StaticResource Primary}" VerticalOptions="Center" />
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnPhone" />
+                    </Grid.GestureRecognizers>
+                    <Label Text="{x:Static views:Icons.Phone}" FontFamily="Icons" FontSize="20" TextColor="{StaticResource Primary}" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="0988 632 841" FontSize="14" TextDecorations="Underline"
+                           TextColor="{StaticResource Primary}" VerticalOptions="Center" />
+                </Grid>
+                <Label Text="Hỗ trợ, góp ý, báo lỗi: gửi email hoặc gọi số trên." Style="{StaticResource Body}" />
+            </VerticalStackLayout>
+
+            <Label Text="ĐIỀU KHOẢN SỬ DỤNG" Style="{StaticResource Section}" />
+            <VerticalStackLayout Style="{StaticResource Card}">
+                <Label Style="{StaticResource Body}"
+                       Text="1. PDF Reader được cung cấp để đọc, chú thích và quản lý tài liệu PDF của chính người dùng. Người dùng tự chịu trách nhiệm về nội dung mình mở, chỉnh sửa, ký và chia sẻ, và phải tuân thủ pháp luật về bản quyền, bí mật và dữ liệu cá nhân." />
+                <Label Style="{StaticResource Body}"
+                       Text="2. Ứng dụng được cung cấp theo hiện trạng. Tác giả không chịu trách nhiệm về thiệt hại phát sinh từ việc mất dữ liệu, sai lệch nội dung sau xử lý hoặc gián đoạn sử dụng; hãy kiểm tra tài liệu trước khi dùng cho mục đích quan trọng và tự sao lưu các tệp cần giữ." />
+                <Label Style="{StaticResource Body}"
+                       Text="3. Chữ ký đặt trên trang là hình ảnh chữ ký tay hoặc ảnh chữ ký do người dùng tải lên, không phải chữ ký số theo quy định về giao dịch điện tử." />
+                <Label Style="{StaticResource Body}"
+                       Text="4. Không được sao chép, dịch ngược, sửa đổi hay phân phối lại ứng dụng khi chưa có sự đồng ý bằng văn bản của tác giả." />
+            </VerticalStackLayout>
+
+            <Label Text="QUYỀN RIÊNG TƯ" Style="{StaticResource Section}" />
+            <VerticalStackLayout Style="{StaticResource Card}">
+                <Label Style="{StaticResource Body}"
+                       Text="Ảnh, tài liệu, chữ ký và PDF chỉ được lưu trên điện thoại này và không được gửi đi đâu, trừ khi chính bạn chọn Chia sẻ. Ứng dụng dùng mạng cho quảng cáo (bản miễn phí), xác thực mua Pro, và kiểm tra/bắt buộc cập nhật qua Google Play; không thu thập dữ liệu sử dụng." />
+            </VerticalStackLayout>
+
+            <Label Text="BẢN QUYỀN" Style="{StaticResource Section}" />
+            <VerticalStackLayout Style="{StaticResource Card}">
+                <Label Text="© 2026 Nguyễn Hữu Quỳnh. Mọi quyền được bảo lưu." FontSize="14" FontFamily="OpenSansSemibold" />
+                <Label Style="{StaticResource Body}" Text="Phần giao diện, trình xem PDF, chú thích và xuất PDF do tác giả tự viết. Ứng dụng có dùng các thành phần mã nguồn mở sau, theo giấy phép của chúng:" />
+                <Label Style="{StaticResource Body}"
+                       Text="• .NET, .NET MAUI (MIT) · Microsoft&#10;• PDFsharp (MIT) · empira Software — gộp, tách, xoay, sắp xếp trang&#10;• PdfPig (Apache-2.0) · UglyToad — đọc chữ trong PDF&#10;• Google ML Kit Text Recognition (điều khoản ML Kit) · Google — nhận dạng chữ OCR trên máy&#10;• Các thư viện AndroidX (Apache-2.0) · Google, binding .NET (MIT) · Microsoft&#10;• Material Icons (Apache-2.0) · Google&#10;• Open Sans (SIL Open Font License 1.1) · Google Fonts&#10;• Bộ hiển thị PDF: PdfRenderer có sẵn trong Android&#10;• Play In-App Update, Play Billing, Play services Tasks (Apache-2.0) · Google, binding .NET (MIT) · Microsoft" />
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+
+    <views:AdBannerSurface x:Name="Banner" Grid.Row="1" />
+    </Grid>
+</ContentPage>

@@ -431,4 +431,62 @@
         <Setter Property="SelectedTabColor" Value="{AppThemeBinding Light={StaticResource Gray950}, Dark={StaticResource Gray200}}" />
     </Style>
 
+    <!-- Reader: buttons on the dark floating action bars, and in the edit-tool panel. -->
+    <Style x:Key="BarButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="White" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="HeightRequest" Value="40" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style x:Key="ToolButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource SurfaceTonal}" />
+        <Setter Property="TextColor" Value="{StaticResource OffBlack}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Padding" Value="4,0" />
+        <Setter Property="HeightRequest" Value="38" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <!-- Round, flat icon button (glyph from the Icons font). -->
+    <Style x:Key="IconButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{StaticResource OffBlack}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="WidthRequest" Value="46" />
+        <Setter Property="HeightRequest" Value="46" />
+        <Setter Property="CornerRadius" Value="23" />
+        <Setter Property="MinimumWidthRequest" Value="0" />
+        <Setter Property="MinimumHeightRequest" Value="0" />
+    </Style>
+
+    <!-- Reader edit dock: one icon of the main tool row. -->
+    <Style x:Key="DockIcon" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{StaticResource OffBlack}" />
+        <Setter Property="FontSize" Value="25" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HeightRequest" Value="46" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="MinimumWidthRequest" Value="0" />
+        <Setter Property="MinimumHeightRequest" Value="0" />
+        <Setter Property="Margin" Value="2,0" />
+    </Style>
+
+    <!-- Small square chip button used in the edit dock (fonts, bold, size, delete). -->
+    <Style x:Key="StyleChip" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="#F8F4EC" />
+        <Setter Property="TextColor" Value="{StaticResource OffBlack}" />
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="WidthRequest" Value="46" />
+        <Setter Property="HeightRequest" Value="42" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="MinimumWidthRequest" Value="0" />
+        <Setter Property="MinimumHeightRequest" Value="0" />
+    </Style>
+
 </ResourceDictionary>

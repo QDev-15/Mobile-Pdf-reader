@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:PdfReader.Views"
+             x:Class="PdfReader.Views.PageManagerPage"
+             BackgroundColor="{StaticResource MilkBackground}"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
+
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="4,6">
+            <Button Grid.Column="0" Text="{x:Static views:Icons.ArrowBack}" FontFamily="Icons" FontSize="24" Style="{StaticResource IconButton}" Clicked="OnBackClicked" />
+            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Margin="4,0">
+                <Label Text="Sắp xếp trang" FontSize="17" FontFamily="OpenSansSemibold" TextColor="{StaticResource OffBlack}" />
+                <Label x:Name="SubtitleLabel" FontSize="11.5" TextColor="{StaticResource InkSoft}" />
+            </VerticalStackLayout>
+            <Button Grid.Column="2" Text="Lưu" Clicked="OnSaveClicked" BackgroundColor="{StaticResource Primary}" TextColor="White"
+                    CornerRadius="20" HeightRequest="40" Padding="22,0" Margin="0,0,10,0" />
+        </Grid>
+
+        <!-- Page thumbnails: tap to select, hold and drag to move -->
+        <CollectionView x:Name="PageGrid" Grid.Row="1" Margin="10,0" CanReorderItems="True" SelectionMode="None" ReorderCompleted="OnReorderCompleted">
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Vertical" Span="3" VerticalItemSpacing="10" HorizontalItemSpacing="10" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnItemTapped" />
+                        </Grid.GestureRecognizers>
+                        <Border Grid.Row="0" HeightRequest="150" BackgroundColor="White" Stroke="{Binding OutlineColor}" StrokeThickness="{Binding OutlineWidth}"
+                                StrokeShape="RoundRectangle 10">
+                            <Grid>
+                                <Image Source="{Binding Thumb}" Rotation="{Binding Rotation}" Aspect="AspectFit" Margin="6" />
+                                <Border IsVisible="{Binding IsSelected}" HorizontalOptions="End" VerticalOptions="Start" Margin="0,6,6,0" WidthRequest="22" HeightRequest="22"
+                                        BackgroundColor="{StaticResource Primary}" StrokeThickness="0" StrokeShape="RoundRectangle 11">
+                                    <Label Text="{x:Static views:Icons.Check}" FontFamily="Icons" FontSize="15" TextColor="White" HorizontalOptions="Center" VerticalOptions="Center" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <Label Grid.Row="1" Text="{Binding Number}" FontSize="12" HorizontalOptions="Center" TextColor="{StaticResource OffBlack}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Actions on the selected pages -->
+        <Border Grid.Row="2" BackgroundColor="White" Stroke="{StaticResource HairLine}" StrokeShape="RoundRectangle 20,20,0,0" Padding="6,6">
+            <Grid ColumnDefinitions="*,*,*,*,*,*">
+                <Button Grid.Column="0" Text="{x:Static views:Icons.SelectAll}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnSelectAllClicked" />
+                <Button Grid.Column="1" Text="{x:Static views:Icons.RotateLeft}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnRotateLeftClicked" />
+                <Button Grid.Column="2" Text="{x:Static views:Icons.RotateRight}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnRotateRightClicked" />
+                <Button Grid.Column="3" Text="{x:Static views:Icons.ArrowUp}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnEarlierClicked" />
+                <Button Grid.Column="4" Text="{x:Static views:Icons.ArrowDown}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnLaterClicked" />
+                <Button Grid.Column="5" Text="{x:Static views:Icons.Delete}" FontFamily="Icons" Style="{StaticResource DockIcon}" TextColor="#C0392B" Clicked="OnDeleteClicked" />
+            </Grid>
+        </Border>
+
+        <views:AdBannerSurface x:Name="Banner" Grid.Row="3" />
+
+        <Border x:Name="BusyPill" Grid.Row="1" IsVisible="False" HorizontalOptions="Center" VerticalOptions="Center" Padding="16,12"
+                BackgroundColor="#E61F1F1F" StrokeThickness="0" StrokeShape="RoundRectangle 18">
+            <HorizontalStackLayout Spacing="10">
+                <ActivityIndicator IsRunning="True" Color="White" HeightRequest="20" WidthRequest="20" />
+                <Label x:Name="BusyLabel" TextColor="White" FontSize="13" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+        </Border>
+
+    </Grid>
+</ContentPage>

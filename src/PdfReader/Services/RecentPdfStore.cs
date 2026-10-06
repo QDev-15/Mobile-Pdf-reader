@@ -44,11 +44,12 @@ public sealed class RecentPdfStore
 			RecentPdfRecord? existing = list.FirstOrDefault(r => r.Uri == uri);
 			string? thumbnailPath = existing?.ThumbnailPath;
 			if (thumbnailPath == null || !File.Exists(thumbnailPath))
-				thumbnailPath = TryRenderThumbnail(uri);
+				thumbnailPath = await Task.Run(() => TryRenderThumbnail(uri));
 
 			var updated = new RecentPdfRecord(uri, displayName, pageCount, DateTimeOffset.UtcNow, existing?.ReadProgress ?? 0)
 			{
 				ThumbnailPath = thumbnailPath,
+				LastPage = existing?.LastPage ?? 0,
 			};
 			list.RemoveAll(r => r.Uri == uri);
 			list.Add(updated);
@@ -58,7 +59,29 @@ public sealed class RecentPdfStore
 		finally { _gate.Release(); }
 	}
 
-	public async Task UpdateProgressAsync(string uri, double readProgress)
+	public async Task<RecentPdfRecord?> GetAsync(string uri)
+	{
+		await _gate.WaitAsync();
+		try { return Load().FirstOrDefault(r => r.Uri == uri); }
+		finally { _gate.Release(); }
+	}
+
+	public async Task RemoveAsync(string uri)
+	{
+		await _gate.WaitAsync();
+		try
+		{
+			List<RecentPdfRecord> list = Load();
+			RecentPdfRecord? gone = list.FirstOrDefault(r => r.Uri == uri);
+			if (gone == null) return;
+			list.Remove(gone);
+			Save(list);
+			if (gone.ThumbnailPath != null) try { File.Delete(gone.ThumbnailPath); } catch { }
+		}
+		finally { _gate.Release(); }
+	}
+
+	public async Task UpdateProgressAsync(string uri, double readProgress, int? lastPage = null)
 	{
 		await _gate.WaitAsync();
 		try
@@ -66,7 +89,7 @@ public sealed class RecentPdfStore
 			List<RecentPdfRecord> list = Load();
 			int i = list.FindIndex(r => r.Uri == uri);
 			if (i < 0) return;
-			list[i] = list[i] with { ReadProgress = readProgress };
+			list[i] = list[i] with { ReadProgress = readProgress, LastPage = lastPage ?? list[i].LastPage };
 			Save(list);
 		}
 		finally { _gate.Release(); }
@@ -75,12 +98,12 @@ public sealed class RecentPdfStore
 	private List<RecentPdfRecord> Load()
 	{
 		if (!File.Exists(_jsonPath)) return [];
-		try { return JsonSerializer.Deserialize<List<RecentPdfRecord>>(File.ReadAllText(_jsonPath)) ?? []; }
+		try { return JsonSerializer.Deserialize(File.ReadAllText(_jsonPath), AppJsonContext.Default.ListRecentPdfRecord) ?? []; }
 		catch { return []; } // corrupt/old-shape file: start fresh rather than crash the Dashboard
 	}
 
 	private void Save(List<RecentPdfRecord> list) =>
-		File.WriteAllText(_jsonPath, JsonSerializer.Serialize(list));
+		File.WriteAllText(_jsonPath, JsonSerializer.Serialize(list, AppJsonContext.Default.ListRecentPdfRecord));
 
 	private string? TryRenderThumbnail(string uri)
 	{

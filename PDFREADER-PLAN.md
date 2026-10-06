@@ -1,6 +1,6 @@
 # PDF Reader App — Kế hoạch
 
-> Trạng thái: Ý tưởng / thảo luận ban đầu (2026-10-06). Chưa bắt đầu code.
+> Trạng thái (cập nhật 2026-10-06): M0–M3 và phần lớn M5 đã được code và build được; **chưa chạy thử trên thiết bị thật**. M4 chỉ còn các bước thủ công (AdMob / Play Billing / keystore / Play Console). Xem README.md cho chi tiết từng tính năng.
 > App thứ 2 của cùng developer (Nguyễn Hữu Quỳnh), cùng Play Console account với DocScanner.
 > **Repo riêng** — tách khỏi `ImageProcessing` để build sạch, không phụ thuộc file/project bên repo DocScanner. Các phần tái dùng được sẽ **copy** sang repo mới (không dùng `ProjectReference` trỏ ngược về repo cũ).
 
@@ -118,8 +118,8 @@
 
 ## 10. Việc cần làm trước khi bắt đầu code
 
-- [ ] Chốt tên repo mới + tên app + package id
-- [ ] Chốt hướng UI style (1 trong 3 gợi ý ở mục 5, hoặc kết hợp)
+- [x] Chốt tên repo mới + tên app + package id (`Mobile-Pdf-reader`, "PDF Reader", `btk.pdfreader`)
+- [x] Chốt hướng UI style: Material You + FAB (nút nổi chỉnh sửa góc dưới trái), nền giấy ngà, nhấn đỏ
 - [ ] Test nhanh ML Kit OCR với vài file PDF scan tiếng Việt thật — xác nhận độ chính xác chấp nhận được trước khi commit kiến trúc
 - [ ] Xác nhận lại với Play Console xem app thứ 2 có bị bắt lặp lại vòng 12 tester/14 ngày không
 - [ ] Tạo AdMob app + ad unit mới, tạo keystore mới

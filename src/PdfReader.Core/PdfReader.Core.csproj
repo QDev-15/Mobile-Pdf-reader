@@ -14,4 +14,9 @@
     <ProjectReference Include="..\ImageCore.Shared\ImageCore.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="PdfPig" Version="0.1.16" />
+    <PackageReference Include="PDFsharp" Version="6.2.4" />
+  </ItemGroup>
+
 </Project>

@@ -3,60 +3,76 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:PdfReader.Views"
              x:Class="PdfReader.Views.DashboardPage"
-             Title="PDF của tôi"
+             Title="Reader"
              BackgroundColor="{StaticResource MilkBackground}"
              Shell.NavBarIsVisible="False">
 
-    <Grid>
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
 
-        <Grid RowDefinitions="Auto,Auto,Auto,*">
-
-            <views:AdBannerSurface Grid.Row="0" />
-
-            <VerticalStackLayout Grid.Row="1" Padding="20,18,20,8" Spacing="2">
-                <Label Text="PDF của tôi" FontSize="26" FontAttributes="Bold" TextColor="{StaticResource OffBlack}" />
-                <Label x:Name="CountLabel" Text="0 tài liệu" FontSize="13" TextColor="{StaticResource InkSoft}" />
-            </VerticalStackLayout>
-
-            <Label Grid.Row="2" Text="GẦN ĐÂY" Padding="20,6,20,10" FontSize="12.5" FontAttributes="Bold"
-                   TextColor="{StaticResource InkSoft}" CharacterSpacing="0.6" />
-
-            <Grid Grid.Row="3">
-                <CollectionView x:Name="RecentList" Margin="16,0,16,100" SelectionMode="Single" SelectionChanged="OnItemSelected">
-                    <CollectionView.ItemsLayout>
-                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
-                    </CollectionView.ItemsLayout>
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Padding="10" ColumnDefinitions="54,*,16" ColumnSpacing="13"
-                                  BackgroundColor="White">
-                                <Border StrokeShape="RoundRectangle 8" Stroke="Transparent" WidthRequest="54" HeightRequest="70" Grid.Column="0">
-                                    <Image Source="{Binding ThumbnailPath}" Aspect="AspectFill" BackgroundColor="{StaticResource MilkBackground}" />
-                                </Border>
-                                <VerticalStackLayout Grid.Column="1" Spacing="5" VerticalOptions="Center">
-                                    <Label Text="{Binding DisplayName}" FontSize="13.5" FontAttributes="Bold"
-                                           TextColor="{StaticResource OffBlack}" LineBreakMode="TailTruncation" />
-                                    <Label Text="{Binding MetaText}" FontSize="11.5" TextColor="{StaticResource InkSoft}" />
-                                    <ProgressBar Progress="{Binding ProgressFraction}" ProgressColor="{StaticResource Primary}"
-                                                 BackgroundColor="{StaticResource SurfaceTonal}" HeightRequest="4" />
-                                </VerticalStackLayout>
-                                <Label Grid.Column="2" Text="&#8250;" FontSize="18" TextColor="{StaticResource InkSoft}" VerticalOptions="Center" />
-                            </Grid>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-
-                <Label x:Name="EmptyLabel" Text="Chưa có PDF nào — bấm + để mở" IsVisible="False"
-                       TextColor="{StaticResource InkSoft}" FontSize="14" HorizontalOptions="Center" VerticalOptions="Center" />
-            </Grid>
-
+        <!-- Compact header: logo + name, then search / open file / settings -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="0" Padding="14,8,6,4">
+            <Image Grid.Column="0" Source="logo.png" WidthRequest="32" HeightRequest="32" VerticalOptions="Center" />
+            <Label Grid.Column="1" Text="Reader" FontSize="20" FontFamily="OpenSansSemibold" TextColor="{StaticResource OffBlack}"
+                   VerticalOptions="Center" Margin="10,0,0,0" />
+            <Button Grid.Column="2" Text="{x:Static views:Icons.Search}" FontFamily="Icons" FontSize="24" Style="{StaticResource IconButton}" Clicked="OnSearchClicked" />
+            <Button Grid.Column="3" Text="{x:Static views:Icons.Folder}" FontFamily="Icons" FontSize="24" Style="{StaticResource IconButton}" Clicked="OnOpenPdfClicked" />
+            <Button Grid.Column="4" Text="{x:Static views:Icons.Settings}" FontFamily="Icons" FontSize="24" Style="{StaticResource IconButton}" Clicked="OnSettingsClicked" />
         </Grid>
 
-        <Button x:Name="OpenButton" Text="+" FontSize="28" FontAttributes="Bold"
-                WidthRequest="58" HeightRequest="58" CornerRadius="20"
-                BackgroundColor="{StaticResource Primary}" TextColor="White"
-                HorizontalOptions="End" VerticalOptions="End" Margin="0,0,20,28"
-                Clicked="OnOpenPdfClicked" />
+        <!-- Search box, shown on demand -->
+        <Border x:Name="SearchRow" Grid.Row="1" IsVisible="False" Margin="14,2,14,6" Padding="12,0,4,0" BackgroundColor="White"
+                Stroke="{StaticResource HairLine}" StrokeShape="RoundRectangle 14">
+            <Grid ColumnDefinitions="*,Auto">
+                <Entry x:Name="SearchEntry" Placeholder="Tìm trong danh sách" FontSize="14" TextColor="{StaticResource OffBlack}"
+                       TextChanged="OnSearchTextChanged" />
+                <Button Grid.Column="1" Text="{x:Static views:Icons.Close}" FontFamily="Icons" FontSize="20" Style="{StaticResource IconButton}"
+                        WidthRequest="40" HeightRequest="40" Clicked="OnSearchCloseClicked" />
+            </Grid>
+        </Border>
+
+        <!-- The recent files fill everything that is left -->
+        <Grid Grid.Row="2">
+            <CollectionView x:Name="RecentList" Margin="14,4,14,8" SelectionMode="Single" SelectionChanged="OnItemSelected">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Vertical" ItemSpacing="8" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <SwipeView>
+                            <SwipeView.RightItems>
+                                <SwipeItems Mode="Execute">
+                                    <SwipeItem Text="Xoá" BackgroundColor="{StaticResource Primary}" Invoked="OnDeleteInvoked" />
+                                </SwipeItems>
+                            </SwipeView.RightItems>
+                            <Border BackgroundColor="White" Stroke="Transparent" StrokeShape="RoundRectangle 14" Padding="10">
+                                <Grid ColumnDefinitions="46,*,Auto" ColumnSpacing="12">
+                                    <Border Grid.Column="0" StrokeShape="RoundRectangle 6" Stroke="{StaticResource HairLine}" WidthRequest="46" HeightRequest="62">
+                                        <Image Source="{Binding ThumbnailPath}" Aspect="AspectFill" BackgroundColor="{StaticResource MilkBackground}" />
+                                    </Border>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                        <Label Text="{Binding DisplayName}" FontSize="14" FontFamily="OpenSansSemibold"
+                                               TextColor="{StaticResource OffBlack}" LineBreakMode="TailTruncation" MaxLines="2" />
+                                        <Label Text="{Binding MetaText}" FontSize="11.5" TextColor="{StaticResource InkSoft}" />
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="2" Text="{x:Static views:Icons.ChevronRight}" FontFamily="Icons" FontSize="22"
+                                           TextColor="{StaticResource InkSoft}" VerticalOptions="Center" />
+                                </Grid>
+                            </Border>
+                        </SwipeView>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <VerticalStackLayout x:Name="EmptyBox" IsVisible="False" HorizontalOptions="Center" VerticalOptions="Center" Spacing="12">
+                <Image Source="logo.png" WidthRequest="72" HeightRequest="72" Opacity="0.55" />
+                <Label x:Name="EmptyLabel" Text="Chưa có PDF nào" TextColor="{StaticResource InkSoft}" FontSize="14" HorizontalOptions="Center" />
+                <Button Text="Mở file PDF" Clicked="OnOpenPdfClicked" BackgroundColor="{StaticResource Primary}" TextColor="White"
+                        CornerRadius="22" HeightRequest="44" Padding="22,0" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- Banner pinned to the bottom, as wide as the screen -->
+        <views:AdBannerSurface x:Name="Banner" Grid.Row="3" />
 
     </Grid>
 </ContentPage>

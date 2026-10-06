@@ -28,19 +28,32 @@ public static class MauiProgram
 			{
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+				fonts.AddFont("MaterialIcons-Regular.ttf", "Icons");
 			})
 			.ConfigureMauiHandlers(handlers =>
 			{
 				handlers.AddHandler<AdBannerSurface, AdBannerSurfaceHandler>();
+				handlers.AddHandler<PdfViewerView, PdfViewerHandler>();
 			});
 
 		builder.Services.AddSingleton(_ => new RecentPdfStore(FileSystem.AppDataDirectory));
+		builder.Services.AddSingleton(_ => new PdfLibrary(FileSystem.AppDataDirectory));
+		builder.Services.AddSingleton(_ => new SignatureStore(FileSystem.AppDataDirectory));
+		builder.Services.AddSingleton(_ => new SignatureImageStore(FileSystem.AppDataDirectory));
+		builder.Services.AddSingleton<OcrService>();
+		builder.Services.AddSingleton<PdfExporter>();
+		builder.Services.AddSingleton<PdfOpener>();
+		builder.Services.AddSingleton<ResultService>();
 		builder.Services.AddSingleton<IDownloadsService, AndroidDownloadsService>();
 		builder.Services.AddSingleton<ILicenseService, LicenseService>();
 		builder.Services.AddSingleton<IAdsService, AdsService>();
 
 		builder.Services.AddTransient<DashboardPage>();
 		builder.Services.AddTransient<ReaderPage>();
+		builder.Services.AddTransient<PageManagerPage>();
+		builder.Services.AddTransient<SettingsPage>();
+		builder.Services.AddTransient<AboutPage>();
+		builder.Services.AddTransient<LaunchPage>();
 
 #if DEBUG
 		builder.Logging.AddDebug();

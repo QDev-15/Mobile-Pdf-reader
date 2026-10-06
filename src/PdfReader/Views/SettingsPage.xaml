@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:PdfReader.Views"
+             x:Class="PdfReader.Views.SettingsPage"
+             Title="Cài đặt"
+             BackgroundColor="{StaticResource MilkBackground}"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <Style x:Key="Section" TargetType="Label">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontFamily" Value="OpenSansSemibold" />
+            <Setter Property="Margin" Value="20,18,20,6" />
+            <Setter Property="TextColor" Value="{StaticResource Primary}" />
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="BackgroundColor" Value="White" />
+            <Setter Property="Stroke" Value="Transparent" />
+            <Setter Property="Margin" Value="14,0" />
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 16" />
+        </Style>
+        <Style x:Key="Name" TargetType="Label">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="TextColor" Value="{StaticResource OffBlack}" />
+        </Style>
+        <Style x:Key="Hint" TargetType="Label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextColor" Value="{StaticResource InkSoft}" />
+        </Style>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Padding="6,8">
+            <Button Grid.Column="0" Text="{x:Static views:Icons.ArrowBack}" FontFamily="Icons" FontSize="24" Style="{StaticResource IconButton}" Clicked="OnBackClicked" />
+            <Label Grid.Column="1" Text="Cài đặt" FontSize="19" FontFamily="OpenSansSemibold" TextColor="{StaticResource OffBlack}" VerticalOptions="Center" Margin="6,0,0,0" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="0,0,0,24">
+
+                <Label Text="GÓI PRO" Style="{StaticResource Section}" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label x:Name="LicenseLabel" Style="{StaticResource Name}" FontFamily="OpenSansSemibold" />
+                        <Grid x:Name="BuyRow" ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <Button x:Name="BuyButton" Text="Mua Pro" Clicked="OnBuyClicked" BackgroundColor="{StaticResource Primary}"
+                                    TextColor="White" FontSize="13" HeightRequest="42" CornerRadius="21" />
+                            <Button Grid.Column="1" Text="Khôi phục giao dịch" Clicked="OnRestoreClicked" BackgroundColor="Transparent"
+                                    BorderWidth="1" BorderColor="{StaticResource Primary}" TextColor="{StaticResource Primary}"
+                                    FontSize="12" HeightRequest="42" CornerRadius="21" />
+                        </Grid>
+                        <ActivityIndicator x:Name="LicenseBusy" IsRunning="False" IsVisible="False" HeightRequest="24" Color="{StaticResource Primary}" />
+                        <VerticalStackLayout x:Name="ProBenefits" Spacing="6" Margin="0,4,0,0">
+                            <Label Text="Bản Pro có gì:" Style="{StaticResource Name}" FontSize="13" FontFamily="OpenSansSemibold" />
+                            <Label Style="{StaticResource Hint}" Text="• Không còn quảng cáo (bản miễn phí có banner ở mọi màn hình và quảng cáo xen kẽ khi đóng / mở file)" />
+                            <Label Style="{StaticResource Hint}" Text="• Mua một lần, dùng vĩnh viễn, không phải trả phí theo tháng" />
+                            <Label Style="{StaticResource Hint}" Text="• Ủng hộ tác giả tiếp tục phát triển ứng dụng" />
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="ĐỌC PDF" Style="{StaticResource Section}" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout>
+                        <Label Text="Chế độ đọc mặc định" Style="{StaticResource Name}" />
+                        <Picker x:Name="ThemePicker" Title="Chế độ đọc" SelectedIndexChanged="OnThemeChanged" TextColor="{StaticResource OffBlack}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="XUẤT PDF" Style="{StaticResource Section}" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout>
+                        <Label Text="Chất lượng mặc định" Style="{StaticResource Name}" />
+                        <Picker x:Name="QualityPicker" Title="Chất lượng" SelectedIndexChanged="OnQualityChanged" TextColor="{StaticResource OffBlack}" />
+                        <Label Text="Nhỏ phù hợp gửi Zalo / email, Cao phù hợp in ấn. Chỉ các trang có chú thích mới bị nén lại." Style="{StaticResource Hint}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="BỘ NHỚ" Style="{StaticResource Section}" />
+                <Border Style="{StaticResource Card}">
+                    <Label x:Name="StorageLabel" Style="{StaticResource Name}" FontSize="14" />
+                </Border>
+
+                <Label Text="PHIÊN BẢN" Style="{StaticResource Section}" />
+                <Border Style="{StaticResource Card}">
+                    <Label x:Name="VersionLabel" Style="{StaticResource Name}" />
+                </Border>
+
+                <Label Text="ỨNG DỤNG" Style="{StaticResource Section}" />
+                <Border Style="{StaticResource Card}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Padding="0,4">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnAboutTapped" />
+                        </Grid.GestureRecognizers>
+                        <Label Text="{x:Static views:Icons.Info}" FontFamily="Icons" FontSize="22" VerticalOptions="Center" TextColor="{StaticResource Primary}" />
+                        <Label Grid.Column="1" Text="Thông tin ứng dụng, điều khoản, bản quyền" Style="{StaticResource Name}" VerticalOptions="Center" />
+                        <Label Grid.Column="2" Text="{x:Static views:Icons.ChevronRight}" FontFamily="Icons" FontSize="22" VerticalOptions="Center" TextColor="{StaticResource InkSoft}" />
+                    </Grid>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <views:AdBannerSurface x:Name="Banner" Grid.Row="2" />
+    </Grid>
+</ContentPage>

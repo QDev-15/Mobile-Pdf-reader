@@ -6,34 +6,197 @@
              BackgroundColor="{StaticResource MilkBackground}"
              Shell.NavBarIsVisible="False">
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto">
+    <!-- Rows: banner / title bar / search / reading surface / edit dock. The dock is its own row, so
+         opening it pushes the document up instead of covering it. -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
 
-        <views:AdBannerSurface Grid.Row="0" />
+        <views:AdBannerSurface x:Name="Banner" Grid.Row="0" />
 
-        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Padding="6,8" ColumnSpacing="6"
+        <!-- Search bar -->
+        <Grid x:Name="SearchRow" Grid.Row="1" IsVisible="False" ColumnDefinitions="*,Auto,Auto,Auto,Auto" Padding="12,2,4,6"
               BackgroundColor="{StaticResource MilkBackground}">
-            <Button Grid.Column="0" Text="&#8249;" FontSize="20" WidthRequest="44" HeightRequest="44"
-                    CornerRadius="12" BackgroundColor="Transparent" TextColor="{StaticResource OffBlack}"
-                    Clicked="OnBackClicked" />
-            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                <Label x:Name="TitleLabel" FontSize="13.5" FontAttributes="Bold" TextColor="{StaticResource OffBlack}"
-                       LineBreakMode="TailTruncation" />
-                <Label x:Name="PageIndicatorLabel" FontSize="11" TextColor="{StaticResource InkSoft}" />
+            <Entry x:Name="SearchEntry" Grid.Column="0" Placeholder="Tìm trong tài liệu" FontSize="14" ReturnType="Search"
+                   TextColor="{StaticResource OffBlack}" Completed="OnSearchCompleted" />
+            <Label x:Name="SearchCountLabel" Grid.Column="1" FontSize="12" TextColor="{StaticResource InkSoft}" VerticalOptions="Center" Margin="4,0" />
+            <Button Grid.Column="2" Text="{x:Static views:Icons.ChevronLeft}" FontFamily="Icons" FontSize="24" Style="{StaticResource IconButton}" WidthRequest="40" HeightRequest="40" Clicked="OnSearchPrevClicked" />
+            <Button Grid.Column="3" Text="{x:Static views:Icons.ChevronRight}" FontFamily="Icons" FontSize="24" Style="{StaticResource IconButton}" WidthRequest="40" HeightRequest="40" Clicked="OnSearchNextClicked" />
+            <Button Grid.Column="4" Text="{x:Static views:Icons.Close}" FontFamily="Icons" FontSize="20" Style="{StaticResource IconButton}" WidthRequest="40" HeightRequest="40" Clicked="OnSearchCloseClicked" />
+        </Grid>
+
+        <!-- Reading surface and everything floating over it -->
+        <Grid Grid.Row="2">
+
+            <views:PdfViewerView x:Name="Viewer" HorizontalOptions="Fill" VerticalOptions="Fill" />
+
+            <!-- Busy / OCR progress -->
+            <Border x:Name="BusyPill" IsVisible="False" HorizontalOptions="Center" VerticalOptions="Start" Margin="0,10,0,0"
+                    Padding="14,10" BackgroundColor="#E61F1F1F" StrokeThickness="0" StrokeShape="RoundRectangle 18">
+                <VerticalStackLayout Spacing="6">
+                    <HorizontalStackLayout Spacing="10">
+                        <ActivityIndicator IsRunning="True" Color="White" HeightRequest="20" WidthRequest="20" />
+                        <Label x:Name="BusyLabel" TextColor="White" FontSize="13" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <ProgressBar x:Name="BusyProgress" IsVisible="False" ProgressColor="White" BackgroundColor="#55FFFFFF" HeightRequest="3" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Text selection actions -->
+            <Border x:Name="SelectionBar" IsVisible="False" HorizontalOptions="Center" VerticalOptions="End" Margin="12,0,12,12"
+                    Padding="6" BackgroundColor="#F21F1F1F" StrokeThickness="0" StrokeShape="RoundRectangle 20">
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                    <HorizontalStackLayout Spacing="2">
+                        <Button Text="Sao chép" Clicked="OnCopyClicked" Style="{StaticResource BarButton}" />
+                        <Button Text="Tô sáng" Clicked="OnHighlightClicked" Style="{StaticResource BarButton}" />
+                        <Button Text="Gạch chân" Clicked="OnUnderlineClicked" Style="{StaticResource BarButton}" />
+                        <Button Text="Gạch ngang" Clicked="OnStrikeClicked" Style="{StaticResource BarButton}" />
+                        <Button Text="Che" Clicked="OnRedactClicked" Style="{StaticResource BarButton}" />
+                        <Button Text="{x:Static views:Icons.Close}" FontFamily="Icons" FontSize="18" Clicked="OnSelectionCloseClicked" Style="{StaticResource BarButton}" />
+                    </HorizontalStackLayout>
+                </ScrollView>
+            </Border>
+
+            <!-- Selected annotation actions -->
+            <Border x:Name="AnnotationBar" IsVisible="False" HorizontalOptions="Center" VerticalOptions="End" Margin="12,0,12,12"
+                    Padding="6" BackgroundColor="#F21F1F1F" StrokeThickness="0" StrokeShape="RoundRectangle 20">
+                <HorizontalStackLayout Spacing="2">
+                    <Button Text="Xoá" Clicked="OnAnnDeleteClicked" Style="{StaticResource BarButton}" TextColor="#FF8A80" />
+                    <Button Text="Xong" Clicked="OnAnnDoneClicked" Style="{StaticResource BarButton}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <!-- Table of contents -->
+            <Grid x:Name="OutlineOverlay" IsVisible="False" BackgroundColor="#99000000">
+                <Border Margin="18,40" Padding="0,14" BackgroundColor="#EEEEEE" StrokeThickness="0" StrokeShape="RoundRectangle 24">
+                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
+                        <Label Grid.Row="0" Text="Mục lục" FontSize="17" FontAttributes="Bold" TextColor="#111111" Margin="22,0" />
+                        <CollectionView x:Name="OutlineList" Grid.Row="1" SelectionMode="Single" SelectionChanged="OnOutlineSelected">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="22,10" ColumnDefinitions="*,Auto">
+                                        <Label Text="{Binding Title}" Margin="{Binding Indent}" FontSize="14" TextColor="#111111" LineBreakMode="TailTruncation" />
+                                        <Label Grid.Column="1" Text="{Binding PageText}" FontSize="12" TextColor="#5F5F5F" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                        <Button Grid.Row="2" Text="Đóng" Clicked="OnOutlineCloseClicked" Margin="14,0" BackgroundColor="Transparent"
+                                TextColor="#111111" FontAttributes="Bold" HorizontalOptions="End" />
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Signature pad -->
+            <Grid x:Name="SignaturePadOverlay" IsVisible="False" BackgroundColor="#99000000">
+                <Border Margin="18" VerticalOptions="Center" Padding="18,18,12,10" BackgroundColor="#EEEEEE" StrokeThickness="0" StrokeShape="RoundRectangle 24">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Vẽ chữ ký của bạn" FontSize="17" FontAttributes="Bold" TextColor="#111111" />
+                        <Label Text="Ký vào khung bên dưới. Chữ ký được lưu trên máy để dùng lại." FontSize="12.5" TextColor="#5F5F5F" />
+                        <Border StrokeThickness="1" Stroke="#D5D5D5" StrokeShape="RoundRectangle 14" BackgroundColor="White" HeightRequest="220">
+                            <GraphicsView x:Name="SignaturePad" HeightRequest="220"
+                                          StartInteraction="OnPadStart" DragInteraction="OnPadDrag" EndInteraction="OnPadEnd" CancelInteraction="OnPadCancel" />
+                        </Border>
+                        <HorizontalStackLayout Spacing="2" HorizontalOptions="End">
+                            <Button Text="Xoá" Clicked="OnPadClearClicked" BackgroundColor="Transparent" TextColor="#111111" />
+                            <Button Text="Huỷ" Clicked="OnPadCancelClicked" BackgroundColor="Transparent" TextColor="#111111" />
+                            <Button Text="Lưu" Clicked="OnPadSaveClicked" BackgroundColor="Transparent" TextColor="#111111" FontAttributes="Bold" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+        </Grid>
+
+        <!-- Edit dock: icons only, in its own strip under the document. A warm grey with a soft shadow above it,
+             so it reads as a tray apart from the page. -->
+        <Border x:Name="ToolDock" Grid.Row="3" IsVisible="False" BackgroundColor="#EFE9DF" Stroke="#DDD3C2"
+                StrokeShape="RoundRectangle 24,24,0,0" Padding="8,10,8,6">
+            <Border.Shadow>
+                <Shadow Brush="Black" Opacity="0.3" Radius="16" Offset="0,-4" />
+            </Border.Shadow>
+            <VerticalStackLayout Spacing="6">
+
+                <!-- Context rows: pen tips + colours / selected text style / signatures -->
+                <VerticalStackLayout x:Name="ContextSection" Spacing="4" IsVisible="False">
+                    <ScrollView x:Name="TipScroll" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                        <HorizontalStackLayout x:Name="TipRow" Spacing="4" Padding="4,0" />
+                    </ScrollView>
+
+                    <!-- Selected text: font, bold, italic, edit -->
+                    <ScrollView x:Name="TextStyleScroll" Orientation="Horizontal" HorizontalScrollBarVisibility="Never" IsVisible="False">
+                        <HorizontalStackLayout Spacing="4" Padding="4,0">
+                            <Button x:Name="FontSansButton" Text="Aa" FontFamily="sans-serif" CommandParameter="sans" Clicked="OnFontClicked" Style="{StaticResource StyleChip}" />
+                            <Button x:Name="FontSerifButton" Text="Aa" FontFamily="serif" CommandParameter="serif" Clicked="OnFontClicked" Style="{StaticResource StyleChip}" />
+                            <Button x:Name="FontMonoButton" Text="Aa" FontFamily="monospace" CommandParameter="mono" Clicked="OnFontClicked" Style="{StaticResource StyleChip}" />
+                            <Button x:Name="FontCursiveButton" Text="Aa" FontFamily="cursive" CommandParameter="cursive" Clicked="OnFontClicked" Style="{StaticResource StyleChip}" />
+                            <BoxView WidthRequest="1" HeightRequest="26" Color="#D5CBB9" Margin="4,0" VerticalOptions="Center" />
+                            <Button x:Name="BoldButton" Text="{x:Static views:Icons.FormatBold}" FontFamily="Icons" Clicked="OnBoldClicked" Style="{StaticResource StyleChip}" />
+                            <Button x:Name="ItalicButton" Text="{x:Static views:Icons.FormatItalic}" FontFamily="Icons" Clicked="OnItalicClicked" Style="{StaticResource StyleChip}" />
+                            <Button Text="{x:Static views:Icons.Edit}" FontFamily="Icons" Clicked="OnAnnEditClicked" Style="{StaticResource StyleChip}" />
+                        </HorizontalStackLayout>
+                    </ScrollView>
+
+                    <ScrollView x:Name="ColorScroll" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                        <HorizontalStackLayout x:Name="ColorRow" Spacing="10" Padding="8,2" />
+                    </ScrollView>
+
+                    <!-- Selected text / signature / picture: smaller, larger, delete, done -->
+                    <HorizontalStackLayout x:Name="ObjectRow" Spacing="4" Padding="4,0" IsVisible="False">
+                        <Button Text="{x:Static views:Icons.Remove}" FontFamily="Icons" Clicked="OnAnnSmallerClicked" Style="{StaticResource StyleChip}" />
+                        <Button Text="{x:Static views:Icons.Add}" FontFamily="Icons" Clicked="OnAnnLargerClicked" Style="{StaticResource StyleChip}" />
+                        <Button Text="{x:Static views:Icons.Delete}" FontFamily="Icons" TextColor="#C0392B" Clicked="OnAnnDeleteClicked" Style="{StaticResource StyleChip}" />
+                        <Button Text="{x:Static views:Icons.Check}" FontFamily="Icons" Clicked="OnAnnDoneClicked" Style="{StaticResource StyleChip}" />
+                        <Label Text="Hai ngón tay: xoay và phóng to" FontSize="11.5" TextColor="{StaticResource InkSoft}" VerticalOptions="Center" Margin="8,0,0,0" />
+                    </HorizontalStackLayout>
+
+                    <!-- Signatures: draw a new one, add a picture, then the ones already made. Hold one and drag it
+                         onto the page; tap one to place it in the middle of what is on screen. -->
+                    <Grid x:Name="SignatureRow" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="4" Padding="4,0" IsVisible="False">
+                        <Button Grid.Column="0" Text="{x:Static views:Icons.Signature}" FontFamily="Icons" Clicked="OnSigDrawClicked" Style="{StaticResource StyleChip}" />
+                        <Button Grid.Column="1" Text="{x:Static views:Icons.Image}" FontFamily="Icons" Clicked="OnSigImageClicked" Style="{StaticResource StyleChip}" />
+                        <ScrollView Grid.Column="2" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                            <HorizontalStackLayout x:Name="SigList" Spacing="8" Padding="4,0" />
+                        </ScrollView>
+                    </Grid>
+
+                    <Label x:Name="DockHint" FontSize="11.5" TextColor="{StaticResource InkSoft}" Margin="8,0" IsVisible="False" />
+                </VerticalStackLayout>
+
+                <!-- Main tool icons -->
+                <Grid ColumnDefinitions="*,*,*,*,*,*,*">
+                    <Button x:Name="PenButton" Grid.Column="0" Text="{x:Static views:Icons.Brush}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnPenClicked" />
+                    <Button x:Name="TextToolButton" Grid.Column="1" Text="{x:Static views:Icons.TextFields}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnTextToolClicked" />
+                    <Button x:Name="SignToolButton" Grid.Column="2" Text="{x:Static views:Icons.Signature}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnSignToolClicked" />
+                    <Button x:Name="UndoButton" Grid.Column="3" Text="{x:Static views:Icons.Undo}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnUndoClicked" />
+                    <Button x:Name="RedoButton" Grid.Column="4" Text="{x:Static views:Icons.Redo}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnRedoClicked" />
+                    <Button x:Name="ExportButton" Grid.Column="5" Text="{x:Static views:Icons.Download}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnExportClicked" />
+                    <Button Grid.Column="6" Text="{x:Static views:Icons.Close}" FontFamily="Icons" Style="{StaticResource DockIcon}" Clicked="OnDockCloseClicked" />
+                </Grid>
+
             </VerticalStackLayout>
-        </Grid>
+        </Border>
 
-        <Grid Grid.Row="2" BackgroundColor="{StaticResource SurfaceTonal}">
-            <Image x:Name="PageImage" Aspect="AspectFit" Margin="12" />
-            <ActivityIndicator x:Name="LoadingIndicator" IsRunning="False" Color="{StaticResource Primary}" />
-        </Grid>
+        <!-- Footer toolbar: back, page / total (+ file name), search, page sorting, edit, more. Hidden while the edit
+             dock is open (the dock replaces it) and when the page is tapped for a clean full-screen read. -->
+        <Border x:Name="ToolbarRow" Grid.Row="4" BackgroundColor="#EFE9DF" Stroke="#DDD3C2" StrokeShape="RoundRectangle 20,20,0,0" Padding="4,4,4,2">
+            <Border.Shadow>
+                <Shadow Brush="Black" Opacity="0.18" Radius="10" Offset="0,-2" />
+            </Border.Shadow>
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+                <Button Grid.Column="0" Text="{x:Static views:Icons.ArrowBack}" FontFamily="Icons" FontSize="24" Style="{StaticResource IconButton}" Clicked="OnBackClicked" />
+                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" HorizontalOptions="Center" Spacing="0" Margin="2,0">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnPageIndicatorTapped" />
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Label x:Name="PageIndicatorLabel" FontSize="16" FontFamily="OpenSansSemibold" TextColor="{StaticResource OffBlack}" HorizontalOptions="Center" />
+                    <Label x:Name="TitleLabel" FontSize="11" TextColor="{StaticResource InkSoft}" LineBreakMode="TailTruncation" HorizontalOptions="Center" MaximumWidthRequest="150" />
+                </VerticalStackLayout>
+                <Button Grid.Column="2" Text="{x:Static views:Icons.Search}" FontFamily="Icons" FontSize="23" Style="{StaticResource IconButton}" Clicked="OnSearchClicked" />
+                <Button Grid.Column="3" Text="{x:Static views:Icons.ViewModule}" FontFamily="Icons" FontSize="23" Style="{StaticResource IconButton}" Clicked="OnPagesClicked" />
+                <Button Grid.Column="4" Text="{x:Static views:Icons.Edit}" FontFamily="Icons" FontSize="23" Style="{StaticResource IconButton}" Clicked="OnEditFabClicked" />
+                <Button Grid.Column="5" Text="{x:Static views:Icons.More}" FontFamily="Icons" FontSize="23" Style="{StaticResource IconButton}" Clicked="OnMenuClicked" />
+            </Grid>
+        </Border>
 
-        <Grid Grid.Row="3" ColumnDefinitions="*,*" Padding="16,10" ColumnSpacing="10"
-              BackgroundColor="{StaticResource MilkBackground}">
-            <Button Grid.Column="0" x:Name="PrevButton" Text="&#8249; Trước" Clicked="OnPrevClicked"
-                    BackgroundColor="{StaticResource SurfaceTonal}" TextColor="{StaticResource OffBlack}" CornerRadius="14" />
-            <Button Grid.Column="1" x:Name="NextButton" Text="Sau &#8250;" Clicked="OnNextClicked"
-                    BackgroundColor="{StaticResource Primary}" TextColor="White" CornerRadius="14" />
-        </Grid>
 
     </Grid>
 </ContentPage>

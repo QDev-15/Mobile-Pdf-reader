@@ -14,4 +14,7 @@ public sealed record RecentPdfRecord(string Uri, string DisplayName, int PageCou
 	/// <summary>PNG thumbnail of the real first page, cached under AppDataDirectory/thumbnails -- null
 	/// until <see cref="Services.RecentPdfStore"/> has rendered one for this entry.</summary>
 	public string? ThumbnailPath { get; init; }
+
+	/// <summary>0-based page the reader was on when it was last closed, so reopening resumes there.</summary>
+	public int LastPage { get; init; }
 }
