@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:PdfReader.Views"
+             x:Class="PdfReader.Views.DashboardPage"
+             Title="PDF của tôi"
+             BackgroundColor="{StaticResource MilkBackground}"
+             Shell.NavBarIsVisible="False">
+
+    <Grid>
+
+        <Grid RowDefinitions="Auto,Auto,Auto,*">
+
+            <views:AdBannerSurface Grid.Row="0" />
+
+            <VerticalStackLayout Grid.Row="1" Padding="20,18,20,8" Spacing="2">
+                <Label Text="PDF của tôi" FontSize="26" FontAttributes="Bold" TextColor="{StaticResource OffBlack}" />
+                <Label x:Name="CountLabel" Text="0 tài liệu" FontSize="13" TextColor="{StaticResource InkSoft}" />
+            </VerticalStackLayout>
+
+            <Label Grid.Row="2" Text="GẦN ĐÂY" Padding="20,6,20,10" FontSize="12.5" FontAttributes="Bold"
+                   TextColor="{StaticResource InkSoft}" CharacterSpacing="0.6" />
+
+            <Grid Grid.Row="3">
+                <CollectionView x:Name="RecentList" Margin="16,0,16,100" SelectionMode="Single" SelectionChanged="OnItemSelected">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Padding="10" ColumnDefinitions="54,*,16" ColumnSpacing="13"
+                                  BackgroundColor="White">
+                                <Border StrokeShape="RoundRectangle 8" Stroke="Transparent" WidthRequest="54" HeightRequest="70" Grid.Column="0">
+                                    <Image Source="{Binding ThumbnailPath}" Aspect="AspectFill" BackgroundColor="{StaticResource MilkBackground}" />
+                                </Border>
+                                <VerticalStackLayout Grid.Column="1" Spacing="5" VerticalOptions="Center">
+                                    <Label Text="{Binding DisplayName}" FontSize="13.5" FontAttributes="Bold"
+                                           TextColor="{StaticResource OffBlack}" LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding MetaText}" FontSize="11.5" TextColor="{StaticResource InkSoft}" />
+                                    <ProgressBar Progress="{Binding ProgressFraction}" ProgressColor="{StaticResource Primary}"
+                                                 BackgroundColor="{StaticResource SurfaceTonal}" HeightRequest="4" />
+                                </VerticalStackLayout>
+                                <Label Grid.Column="2" Text="&#8250;" FontSize="18" TextColor="{StaticResource InkSoft}" VerticalOptions="Center" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label x:Name="EmptyLabel" Text="Chưa có PDF nào — bấm + để mở" IsVisible="False"
+                       TextColor="{StaticResource InkSoft}" FontSize="14" HorizontalOptions="Center" VerticalOptions="Center" />
+            </Grid>
+
+        </Grid>
+
+        <Button x:Name="OpenButton" Text="+" FontSize="28" FontAttributes="Bold"
+                WidthRequest="58" HeightRequest="58" CornerRadius="20"
+                BackgroundColor="{StaticResource Primary}" TextColor="White"
+                HorizontalOptions="End" VerticalOptions="End" Margin="0,0,20,28"
+                Clicked="OnOpenPdfClicked" />
+
+    </Grid>
+</ContentPage>

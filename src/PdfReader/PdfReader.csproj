@@ -1,0 +1,94 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!-- Android only for now (no Mac for iOS), same decision as the sibling DocScanner repo. To add
+		     iOS later: append net10.0-ios here and restore Platforms\iOS from the MAUI template. -->
+		<TargetFrameworks>net10.0-android</TargetFrameworks>
+
+		<OutputType>Exe</OutputType>
+		<RootNamespace>PdfReader</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+
+		<!-- Enable XAML source generation for faster build times and improved performance (same
+		     performance lesson as DocScanner: Debug falls back to runtime inflation + the Mono
+		     interpreter, which reads as "app chậm" when it is really just a Debug build). -->
+		<MauiXamlInflator>SourceGen</MauiXamlInflator>
+
+		<!-- Display name -->
+		<ApplicationTitle>PDF Reader</ApplicationTitle>
+
+		<!-- App Identifier -->
+		<ApplicationId>btk.pdfreader</ApplicationId>
+
+		<!-- Versions. Bump ApplicationVersion (Android versionCode) on every build going to a device or to Play. -->
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>1</ApplicationVersion>
+
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">26.0</SupportedOSPlatformVersion>
+
+		<!-- AdMob App ID placeholder: Google's published TEST app id, so the SDK never crashes at
+		     startup (a malformed id does, before any C# runs). TODO: replace with the real App ID once
+		     an AdMob app + ad units exist for PdfReader (see AdsConfig.cs for the matching ad unit ids;
+		     cannot share DocScanner's, plan section 6/8). -->
+		<AndroidManifestPlaceholders>admobAppId=ca-app-pub-3940256099942544~3347511713</AndroidManifestPlaceholders>
+	</PropertyGroup>
+
+	<!-- Same Release/Debug performance tuning as DocScanner (plan section 2): LLVM AOT in Release,
+	     JIT instead of the Hot-Reload interpreter in Debug. -->
+	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+		<UseInterpreter>false</UseInterpreter>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
+		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+		<EnableLLVM>true</EnableLLVM>
+	</PropertyGroup>
+
+	<!-- Release signing (Google Play upload key): keystore + passwords are NOT in this file. A new,
+	     separate keystore (not DocScanner's) must be created before any Release/Play build, see
+	     plan section 7 "Không tái dùng - viết mới". Not set up yet; a Release build without it falls
+	     back to the debug key (fine for local testing only, never upload that AAB to Play). -->
+	<Import Project="release\Signing.props" Condition="'$(Configuration)' == 'Release' AND Exists('release\Signing.props')" />
+
+	<ItemGroup>
+		<!-- App Icon -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#C0392B" />
+
+		<!-- Splash Screen -->
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#FFF9F3" BaseSize="128,128" />
+
+		<!-- Images -->
+		<MauiImage Include="Resources\Images\*" />
+
+		<!-- Custom Fonts -->
+		<MauiFont Include="Resources\Fonts\*" />
+
+		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
+		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Plugin.AdMob 10.0.90 needs Microsoft.Maui.Controls >= 10.0.90 (same pin as DocScanner). -->
+		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.90" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+		<!-- MIT: banner + interstitial ads for the free tier (Services/AdsService.cs). Pulls in the
+		     Google Mobile Ads SDK itself (proprietary, Google's own terms). -->
+		<PackageReference Include="Plugin.AdMob" Version="10.0.90" />
+		<!-- MIT: Play Billing wrapper for the Pro unlock (Services/LicenseService.cs). -->
+		<PackageReference Include="Plugin.InAppBilling" Version="10.0.0" />
+		<!-- Apache-2.0: Google Play In-App Updates (Platforms/Android/AndroidAppUpdate.cs). -->
+		<PackageReference Include="Xamarin.Google.Android.Play.App.Update" Version="2.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\PdfReader.Core\PdfReader.Core.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="release\" />
+	</ItemGroup>
+
+</Project>

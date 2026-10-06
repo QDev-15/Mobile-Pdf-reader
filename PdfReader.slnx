@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ImageCore.Shared/ImageCore.Shared.csproj" />
+    <Project Path="src/PdfReader.Core/PdfReader.Core.csproj" />
+    <Project Path="src/PdfReader/PdfReader.csproj" />
+  </Folder>
+</Solution>

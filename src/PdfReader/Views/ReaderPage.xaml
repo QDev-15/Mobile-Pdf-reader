@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:PdfReader.Views"
+             x:Class="PdfReader.Views.ReaderPage"
+             BackgroundColor="{StaticResource MilkBackground}"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <views:AdBannerSurface Grid.Row="0" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Padding="6,8" ColumnSpacing="6"
+              BackgroundColor="{StaticResource MilkBackground}">
+            <Button Grid.Column="0" Text="&#8249;" FontSize="20" WidthRequest="44" HeightRequest="44"
+                    CornerRadius="12" BackgroundColor="Transparent" TextColor="{StaticResource OffBlack}"
+                    Clicked="OnBackClicked" />
+            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                <Label x:Name="TitleLabel" FontSize="13.5" FontAttributes="Bold" TextColor="{StaticResource OffBlack}"
+                       LineBreakMode="TailTruncation" />
+                <Label x:Name="PageIndicatorLabel" FontSize="11" TextColor="{StaticResource InkSoft}" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <Grid Grid.Row="2" BackgroundColor="{StaticResource SurfaceTonal}">
+            <Image x:Name="PageImage" Aspect="AspectFit" Margin="12" />
+            <ActivityIndicator x:Name="LoadingIndicator" IsRunning="False" Color="{StaticResource Primary}" />
+        </Grid>
+
+        <Grid Grid.Row="3" ColumnDefinitions="*,*" Padding="16,10" ColumnSpacing="10"
+              BackgroundColor="{StaticResource MilkBackground}">
+            <Button Grid.Column="0" x:Name="PrevButton" Text="&#8249; Trước" Clicked="OnPrevClicked"
+                    BackgroundColor="{StaticResource SurfaceTonal}" TextColor="{StaticResource OffBlack}" CornerRadius="14" />
+            <Button Grid.Column="1" x:Name="NextButton" Text="Sau &#8250;" Clicked="OnNextClicked"
+                    BackgroundColor="{StaticResource Primary}" TextColor="White" CornerRadius="14" />
+        </Grid>
+
+    </Grid>
+</ContentPage>

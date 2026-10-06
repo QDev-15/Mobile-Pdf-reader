@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+	<application android:allowBackup="false" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true">
+
+		<!-- AdMob (Services/AdsService.cs). ${admobAppId} comes from PdfReader.csproj's
+		     AndroidManifestPlaceholders; see the TODO there before a Play release build. -->
+		<meta-data android:name="com.google.android.gms.ads.APPLICATION_ID"
+		           android:value="${admobAppId}" />
+		<activity android:name="com.google.android.gms.ads.AdActivity"
+		          android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
+		          android:theme="@android:style/Theme.Translucent" android:exported="false" />
+	</application>
+
+	<!-- Google Play Billing (bản Pro tắt ads) + AdMob + Play In-App Update: no server of our own; the
+	     PDF itself never leaves the phone. -->
+	<uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+	<!-- MainActivity's own [IntentFilter] attributes (Platforms/Android/MainActivity.cs) declare it as a
+	     target for ACTION_VIEW / ACTION_SEND of application/pdf, which is how it shows up in a file
+	     manager's "Open with" / "Share" sheet (plan section 8 item 1: Android decides whether to also
+	     offer "Always"; an app cannot force itself to be the default). Nothing else is needed here. -->
+</manifest>

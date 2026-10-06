@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Platform-neutral logic of the app (licensing, ads policy, export quality presets). No MAUI /
+       Android references, so it is unit-testable on the PC. Same split as DocScanner.Core in the
+       sibling Mobile-doc-scanner repo. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>PdfReader.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ImageCore.Shared\ImageCore.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
