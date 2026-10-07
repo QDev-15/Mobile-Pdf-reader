@@ -24,7 +24,7 @@
                 Stroke="{StaticResource HairLine}" StrokeShape="RoundRectangle 14">
             <Grid ColumnDefinitions="*,Auto">
                 <Entry x:Name="SearchEntry" Placeholder="Tìm trong danh sách" FontSize="14" TextColor="{StaticResource OffBlack}"
-                       TextChanged="OnSearchTextChanged" />
+                       TextChanged="OnSearchTextChanged" Unfocused="OnSearchEntryUnfocused" />
                 <Button Grid.Column="1" Text="{x:Static views:Icons.Close}" FontFamily="Icons" FontSize="20" Style="{StaticResource IconButton}"
                         WidthRequest="40" HeightRequest="40" Clicked="OnSearchCloseClicked" />
             </Grid>

@@ -89,6 +89,10 @@ public partial class DashboardPage : ContentPage
 
 	private void OnSearchCloseClicked(object? sender, EventArgs e) => CloseSearch();
 
+	// Strict focus <-> keyboard coupling (no exceptions): whatever makes the entry lose focus -- tapping
+	// a list item, the close button, elsewhere on the page -- must also put the keyboard away.
+	private void OnSearchEntryUnfocused(object? sender, FocusEventArgs e) => Dialogs.HideKeyboard();
+
 	private void CloseSearch()
 	{
 		SearchEntry.Text = "";

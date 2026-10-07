@@ -65,6 +65,10 @@ public static class Dialogs
 			};
 			if (maxLength > 0) entry.MaxLength = maxLength;
 			entry.Completed += (_, _) => close(entry.Text);
+			// Strict focus <-> keyboard coupling: whatever makes the entry lose focus (tapping a button,
+			// the system picking a different view, ...) must also put the keyboard away -- Android does
+			// not reliably do this on its own just because MAUI's IsFocused flipped.
+			entry.Unfocused += (_, _) => HideKeyboard();
 			Dispatcher(host)?.Dispatch(() => entry.Focus());
 			var field = new Border
 			{
@@ -82,6 +86,7 @@ public static class Dialogs
 		ShowAsync<(string, PdfQuality)?>(host, close =>
 		{
 			var entry = new Entry { Text = defaultName, TextColor = Ink, FontSize = 15, MaxLength = 120 };
+			entry.Unfocused += (_, _) => HideKeyboard();
 			var field = new Border
 			{
 				Content = entry,
@@ -196,11 +201,9 @@ public static class Dialogs
 		}
 
 		View card = build(Close);
-		var scrimTap = new TapGestureRecognizer();
-		scrimTap.Tapped += (_, _) => Close(cancelValue);
-		layer.GestureRecognizers.Add(scrimTap);
-		// The card swallows taps so that touching it never counts as touching the scrim.
-		card.GestureRecognizers.Add(new TapGestureRecognizer());
+		// Deliberately no tap-on-scrim-to-dismiss: a pop-up must be closed through one of its own
+		// buttons (or the hardware Back button, via TryDismiss) -- tapping outside it used to close it
+		// as if cancelled, which lost the person's place in a flow without them asking to leave it.
 		layer.Add(card);
 
 		if (_dismiss != null) TryDismiss(); // never stack two

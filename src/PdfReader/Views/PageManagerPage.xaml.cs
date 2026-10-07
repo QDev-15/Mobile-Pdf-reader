@@ -243,7 +243,14 @@ public partial class PageManagerPage : ContentPage
 		BusyPill.IsVisible = true;
 		try
 		{
-			await Task.Run(() => PdfStructureOps.Rebuild(source, edits, output));
+			// Hard rule: the pill never stays up longer than 1 minute (TaskTimeoutExtensions) -- Rebuild
+			// has no cancellation hook, so on timeout it is simply left running and this reports failure.
+			bool completed = await Task.Run(() => PdfStructureOps.Rebuild(source, edits, output)).WaitOrTimeoutAsync();
+			if (!completed)
+			{
+				await this.AlertAsync("Quá thời gian chờ", "Sắp xếp trang mất hơn 1 phút nên đã dừng chờ. Hãy thử lại.", "Đóng");
+				return;
+			}
 		}
 		catch (Exception ex)
 		{

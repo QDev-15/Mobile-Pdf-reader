@@ -66,7 +66,10 @@ Chưa có:
 
 ## TODO trước khi build Release / lên Play (việc phải làm thủ công)
 
-- [ ] Tạo AdMob app + 2 ad unit ID thật, điền vào `AdsConfig.cs` và `PdfReader.csproj` (`AndroidManifestPlaceholders`)
+- [ ] Tạo AdMob app + 2 ad unit ID thật, điền vào `AdsConfig.cs` (ad unit) và `PdfReaderRealAdMobAppId` trong `PdfReader.csproj` (App ID). Hai ID này **chỉ có hiệu lực khi build với `-p:AdsMode=Pro`** — mặc định (không truyền cờ, dù Debug hay Release, dù APK hay AAB) luôn dùng ID test của Google, kể cả khi đã upload lên Play testing track. Build bản thật để lên Play:
+  ```
+  dotnet publish src/PdfReader -f net10.0-android -c Release -p:AndroidPackageFormat=aab -p:AdsMode=Pro
+  ```
 - [ ] Tạo product ID Pro thật trên Play Console, điền vào `LicenseService.ProProductId`
 - [ ] Tạo keystore ký app riêng — xem [KEYSTORE-README.md](KEYSTORE-README.md)
 - [ ] Test tay trên thiết bị thật: zoom/pan, chọn chữ, OCR tiếng Việt, vẽ/chữ ký, export, mật khẩu, PDF lớn

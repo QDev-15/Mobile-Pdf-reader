@@ -21,24 +21,59 @@ public sealed class ResultService(IDownloadsService downloads, PdfOpener opener)
 		return n.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? n[..^4] : n;
 	}
 
-	/// <summary>Asks what to do with a finished PDF. <paramref name="fileName"/> includes ".pdf".</summary>
+	/// <summary>Saves a finished PDF straight into Downloads/PdfReader -- no extra "do you want to save?"
+	/// step -- then tells the person it is done, with "Xem" (open it) and "Chia sẻ" (share it) on that
+	/// same notification. <paramref name="fileName"/> includes ".pdf".</summary>
 	public async Task DeliverPdfAsync(string workFile, string fileName)
 	{
 		Page host = UiHost.Shell;
-		string? choice = await host.ChoiceAsync($"Đã tạo: {fileName}", "Để sau", null, "Mở file mới", "Lưu vào Tải xuống", "Chia sẻ");
+
+		if (!downloads.IsSupported)
+		{
+			// No MediaStore on this Android version: cannot save silently, so ask instead of failing.
+			string? choice = await host.ChoiceAsync($"Đã tạo: {fileName}", "Đóng", null, "Mở file mới", "Chia sẻ");
+			try
+			{
+				switch (choice)
+				{
+					case "Mở file mới": await opener.OpenAsync(workFile, fileName); return;
+					case "Chia sẻ": await ShareAsync(workFile, fileName, "application/pdf"); break;
+				}
+			}
+			catch (Exception ex) { await host.AlertAsync("Không hoàn tất được", ex.Message, "Đóng"); }
+			finally { if (choice != "Mở file mới") TryDelete(workFile); }
+			return;
+		}
+
+		string saved;
 		try
 		{
-			switch (choice)
+			saved = await downloads.SaveAsync(workFile, fileName, "application/pdf");
+		}
+		catch (Exception ex)
+		{
+			await host.AlertAsync("Không lưu được", ex.Message, "Đóng");
+			TryDelete(workFile);
+			return;
+		}
+		await NotifySavedAsync(workFile, fileName, saved);
+	}
+
+	/// <summary>The "Đã lưu ..." notification for a file already saved to Downloads/PdfReader, with "Xem"
+	/// (open it) and "Chia sẻ" (share it) -- the only two ways to close it, besides the neutral "Xong".
+	/// Shared by <see cref="DeliverPdfAsync"/> and by callers (<c>ReaderPage.ExportAsync</c>) that save via
+	/// <see cref="SavePdfAsync"/> themselves because they need the busy pill up for the save too.</summary>
+	public async Task NotifySavedAsync(string workFile, string fileName, string savedName, long? bytes = null)
+	{
+		Page host = UiHost.Shell;
+		string sizeSuffix = bytes is { } b ? $" · {FormatSize(b)}" : "";
+		string? action = await host.ChoiceAsync($"Đã lưu {savedName}{sizeSuffix} vào Tải xuống › {AndroidDownloadsService.Subfolder}", "Xong", null, "Xem", "Chia sẻ");
+		try
+		{
+			switch (action)
 			{
-				case "Mở file mới":
-					await opener.OpenAsync(workFile, fileName);
-					return; // opening copies it into the library; the scratch file is left for the OS temp cleanup
-				case "Lưu vào Tải xuống":
-					await SaveToDownloadsAsync(host, workFile, fileName, "application/pdf");
-					break;
-				case "Chia sẻ":
-					await ShareAsync(workFile, fileName, "application/pdf");
-					break;
+				case "Xem": await opener.OpenAsync(workFile, fileName); return; // opening copies it into the library
+				case "Chia sẻ": await ShareAsync(workFile, fileName, "application/pdf"); break;
 			}
 		}
 		catch (Exception ex)
@@ -47,7 +82,7 @@ public sealed class ResultService(IDownloadsService downloads, PdfOpener opener)
 		}
 		finally
 		{
-			if (choice != "Mở file mới" && choice != "Chia sẻ") TryDelete(workFile);
+			if (action != "Xem") TryDelete(workFile);
 		}
 	}
 
@@ -59,13 +94,14 @@ public sealed class ResultService(IDownloadsService downloads, PdfOpener opener)
 	}
 
 	/// <summary>Saves a finished PDF straight into Downloads/PdfReader and returns the name it got and its
-	/// size; null when this Android version cannot (the caller falls back to sharing).</summary>
+	/// size; null when this Android version cannot (the caller falls back to sharing). Deliberately does
+	/// NOT delete <paramref name="workFile"/> -- the caller still needs it for "Xem" / "Chia sẻ" on the
+	/// notification that follows (<see cref="NotifySavedAsync"/>), which does the cleanup.</summary>
 	public async Task<(string Name, long Bytes)?> SavePdfAsync(string workFile, string fileName)
 	{
 		if (!downloads.IsSupported) return null;
 		long bytes = new FileInfo(workFile).Length;
 		string saved = await downloads.SaveAsync(workFile, fileName, "application/pdf");
-		TryDelete(workFile);
 		return (saved, bytes);
 	}
 
@@ -91,17 +127,6 @@ public sealed class ResultService(IDownloadsService downloads, PdfOpener opener)
 		{
 			foreach ((string file, _) in files) TryDelete(file);
 		}
-	}
-
-	private async Task SaveToDownloadsAsync(Page host, string file, string name, string mimeType)
-	{
-		if (!downloads.IsSupported)
-		{
-			await host.AlertAsync("Chưa hỗ trợ", "Lưu vào Tải xuống cần Android 10 trở lên. Hãy dùng Chia sẻ.", "Đóng");
-			return;
-		}
-		string saved = await downloads.SaveAsync(file, name, mimeType);
-		await host.AlertAsync("Đã lưu", $"{saved}\nTrong Tải xuống › {AndroidDownloadsService.Subfolder}.", "OK");
 	}
 
 	public async Task ShareAsync(string file, string name, string mimeType)

@@ -95,6 +95,23 @@ public sealed class RecentPdfStore
 		finally { _gate.Release(); }
 	}
 
+	/// <summary>Renames the Dashboard / title-bar label for a document. Only this record changes -- the PDF
+	/// bytes and its file name on disk are untouched.</summary>
+	public async Task<RecentPdfRecord?> RenameAsync(string uri, string newDisplayName)
+	{
+		await _gate.WaitAsync();
+		try
+		{
+			List<RecentPdfRecord> list = Load();
+			int i = list.FindIndex(r => r.Uri == uri);
+			if (i < 0) return null;
+			list[i] = list[i] with { DisplayName = newDisplayName };
+			Save(list);
+			return list[i];
+		}
+		finally { _gate.Release(); }
+	}
+
 	private List<RecentPdfRecord> Load()
 	{
 		if (!File.Exists(_jsonPath)) return [];

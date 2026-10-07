@@ -11,13 +11,15 @@ public static class MauiProgram
 {
 	public static MauiApp CreateMauiApp()
 	{
-		// Ads: Debug always uses Google's own test ad units, whatever AdsConfig says, so development
-		// never risks a policy strike from clicking a real ad. Release does too, UNLESS
-		// AdsConfig.HasRealIds -- see AdsConfig.cs.
-#if DEBUG
-		Plugin.AdMob.Configuration.AdConfig.UseTestAdUnitIds = true;
-#else
+		// Ads mode (PdfReader.csproj's AdsMode MSBuild property, -> ADS_MODE_PRO), NOT Debug/Release:
+		// the default "Dev" mode always uses Google's own test ad units, Debug or Release, APK or AAB,
+		// even uploaded to a Play testing track -- so nobody can accidentally click a real ad and risk a
+		// policy strike. Only a build made with -p:AdsMode=Pro uses the real AdsConfig ids, and even then
+		// only once AdsConfig.HasRealIds (both ids actually filled in) -- see AdsConfig.cs.
+#if ADS_MODE_PRO
 		Plugin.AdMob.Configuration.AdConfig.UseTestAdUnitIds = !AdsConfig.HasRealIds;
+#else
+		Plugin.AdMob.Configuration.AdConfig.UseTestAdUnitIds = true;
 #endif
 
 		var builder = MauiApp.CreateBuilder();

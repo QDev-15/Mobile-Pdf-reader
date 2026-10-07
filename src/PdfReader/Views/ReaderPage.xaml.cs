@@ -58,7 +58,7 @@ public partial class ReaderPage : ContentPage
 	private int _tipIndex = 1;
 	private CancellationTokenSource? _progressSave;
 	private CancellationTokenSource? _searchCts;
-	private bool _busyJob;
+	private int _busyJobToken; // 0 = no RunJobAsync in flight; otherwise which call owns the busy pill right now
 	private bool _closing;
 
 	public string? Uri { get; set; }
@@ -228,31 +228,58 @@ public partial class ReaderPage : ContentPage
 		_ = _store.UpdateProgressAsync(Uri, (double)(page + 1) / _session.PageCount, page);
 	}
 
-	private void ShowBusy(string text, double? progress = null)
+	/// <summary>Always on the UI thread, even if the caller is not -- OCR (ML Kit) and some Play Services
+	/// calls complete their continuation off the main thread, and a property set on a native Android view
+	/// from the wrong thread can silently fail to redraw instead of throwing, which reads as "the spinner
+	/// is stuck" (it is still spinning underneath; the pill just never got told to hide).</summary>
+	private void OnUiThread(Action action)
+	{
+		if (MainThread.IsMainThread) action();
+		else MainThread.BeginInvokeOnMainThread(action);
+	}
+
+	private void ShowBusy(string text, double? progress = null) => OnUiThread(() =>
 	{
 		BusyLabel.Text = text;
 		BusyProgress.IsVisible = progress != null;
 		if (progress != null) BusyProgress.Progress = Math.Clamp(progress.Value, 0, 1);
 		BusyPill.IsVisible = true;
-	}
+	});
 
-	private void HideBusy() => BusyPill.IsVisible = false;
+	private void HideBusy() => OnUiThread(() => BusyPill.IsVisible = false);
 
 	private void OnEngineBusy(string? message)
 	{
-		if (_busyJob) return;
+		if (_busyJobToken != 0) return; // a RunJobAsync call owns the pill right now; let its own finally decide
 		if (message == null) HideBusy();
 		else ShowBusy(message);
 	}
 
-	/// <summary>Runs a long operation behind the busy pill, reporting failures instead of crashing.</summary>
+	/// <summary>Runs a long operation behind the busy pill, reporting failures instead of crashing. Each
+	/// call gets its own token: if a second call starts before the first's "finally" runs (e.g. a search
+	/// fired again while the previous one was still wrapping up), only the call that is still current when
+	/// it finishes gets to hide the pill or report progress -- a superseded call's late finally must not
+	/// hide the NEWER call's spinner, and must not go on nudging its progress bar either.
+	///
+	/// Hard rule: the pill never stays up longer than <see cref="TaskTimeoutExtensions.DefaultTimeoutMs"/>
+	/// (1 minute), whatever the reason the work has not finished by then. The underlying work cannot
+	/// always be cancelled (OCR, Play Services, ...), so on timeout it is simply abandoned -- its result,
+	/// if it ever arrives, is unobserved -- and this reports failure so the caller treats it the same as
+	/// any other "did not complete".</summary>
 	private async Task<bool> RunJobAsync(string title, Func<IProgress<double>, Task> work)
 	{
-		_busyJob = true;
+		int token = ++_busyJobToken;
+		if (token == 0) token = ++_busyJobToken; // skip the sentinel "no job" value on wraparound
 		ShowBusy(title, 0);
 		try
 		{
-			await work(new Progress<double>(v => ShowBusy(title, v)));
+			Task workTask = work(new Progress<double>(v => { if (_busyJobToken == token) ShowBusy(title, v); }));
+			bool completed = await workTask.WaitOrTimeoutAsync();
+			if (!completed)
+			{
+				await this.AlertAsync("Quá thời gian chờ", $"\"{title.TrimEnd('…', ' ')}\" mất hơn 1 phút nên đã dừng chờ. Hãy thử lại.", "Đóng");
+				return false;
+			}
 			return true;
 		}
 		catch (OperationCanceledException)
@@ -266,8 +293,11 @@ public partial class ReaderPage : ContentPage
 		}
 		finally
 		{
-			_busyJob = false;
-			HideBusy();
+			if (_busyJobToken == token)
+			{
+				_busyJobToken = 0;
+				HideBusy();
+			}
 		}
 	}
 
@@ -308,9 +338,10 @@ public partial class ReaderPage : ContentPage
 	{
 		if (_session == null || _engine == null) return;
 		string? choice = await this.ChoiceAsync(DisplayName ?? "PDF", "Đóng", null,
-			"Sắp xếp / xoay / xoá trang", "Mục lục", "Chế độ đọc…", "Chọn & sao chép chữ trang này", "Công cụ PDF…", "Chia sẻ file gốc");
+			"Đổi tên file", "Sắp xếp / xoay / xoá trang", "Mục lục", "Chế độ đọc…", "Chọn & sao chép chữ trang này", "Công cụ PDF…", "Chia sẻ file gốc");
 		switch (choice)
 		{
+			case "Đổi tên file": await RenameAsync(); break;
 			case "Sắp xếp / xoay / xoá trang": await OpenPageManagerAsync(); break;
 			case "Mục lục": await ShowOutlineAsync(); break;
 			case "Chế độ đọc…": await PickThemeAsync(); break;
@@ -321,6 +352,23 @@ public partial class ReaderPage : ContentPage
 				catch (Exception ex) { await this.AlertAsync("Không chia sẻ được", ex.Message, "Đóng"); }
 				break;
 		}
+	}
+
+	/// <summary>Changes only the Dashboard / title-bar label -- the PDF bytes and its file name on disk are
+	/// untouched (so re-exporting still bases its name on the ORIGINAL file name via <see cref="BaseName"/>
+	/// at the time it was opened; renaming after the fact does not retroactively change already-queued
+	/// export names, which is fine since each export asks for its own name anyway).</summary>
+	private async Task RenameAsync()
+	{
+		if (Uri == null) return;
+		string? input = await this.PromptAsync("Đổi tên file", "Tên mới cho tài liệu này", "Lưu", "Huỷ", initialValue: BaseName, maxLength: 120);
+		if (string.IsNullOrWhiteSpace(input)) return;
+		string name = ResultService.SafeName(input.Trim());
+		if (!name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) name += ".pdf";
+		RecentPdfRecord? updated = await _store.RenameAsync(Uri, name);
+		if (updated == null) return;
+		DisplayName = updated.DisplayName;
+		TitleLabel.Text = DisplayName;
 	}
 
 	private async Task PickThemeAsync()
@@ -405,6 +453,10 @@ public partial class ReaderPage : ContentPage
 	}
 
 	private void OnSearchCloseClicked(object? sender, EventArgs e) => CloseSearch();
+
+	// Strict focus <-> keyboard coupling (no exceptions): whatever makes the entry lose focus must also
+	// put the keyboard away, instead of relying on Android to do it just because IsFocused flipped.
+	private void OnSearchEntryUnfocused(object? sender, FocusEventArgs e) => Dialogs.HideKeyboard();
 
 	private async void OnSearchCompleted(object? sender, EventArgs e)
 	{
@@ -1112,7 +1164,7 @@ public partial class ReaderPage : ContentPage
 
 		if (saved is { } s)
 		{
-			await this.AlertAsync("Đã xuất PDF", $"{s.Name}\n{ResultService.FormatSize(s.Bytes)}", "OK");
+			await _results.NotifySavedAsync(file, fileName, s.Name, s.Bytes);
 		}
 		else
 		{

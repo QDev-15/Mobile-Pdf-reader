@@ -29,11 +29,24 @@
 
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">26.0</SupportedOSPlatformVersion>
 
-		<!-- AdMob App ID placeholder: Google's published TEST app id, so the SDK never crashes at
-		     startup (a malformed id does, before any C# runs). TODO: replace with the real App ID once
-		     an AdMob app + ad units exist for PdfReader (see AdsConfig.cs for the matching ad unit ids;
-		     cannot share DocScanner's, plan section 6/8). -->
-		<AndroidManifestPlaceholders>admobAppId=ca-app-pub-3940256099942544~3347511713</AndroidManifestPlaceholders>
+		<!-- Ads mode: independent of Configuration (Debug/Release) and of APK vs AAB. "Dev" (the
+		     default, if not passed on the command line) always requests Google's TEST ad App ID + ad
+		     units, whatever is being built, so a Release .aab uploaded to a Play internal/closed testing
+		     track still shows test ads and can never trigger an invalid-click policy strike. Only "Pro"
+		     switches to the real ids below, and only when explicitly passed:
+		       dotnet publish src/PdfReader -f net10.0-android -c Release -p:AndroidPackageFormat=aab -p:AdsMode=Pro
+		     for the one build that actually goes to Play for real. -->
+		<AdsMode Condition="'$(AdsMode)' == ''">Dev</AdsMode>
+		<DefineConstants Condition="'$(AdsMode)' == 'Pro'">$(DefineConstants);ADS_MODE_PRO</DefineConstants>
+
+		<!-- AdMob App ID: Google's published TEST id by default. TODO: once a real AdMob app exists for
+		     PdfReader (cannot share DocScanner's, plan section 6/8), put its real App ID here. It only
+		     actually gets used when AdsMode=Pro (below), and even then only once it no longer contains
+		     "REPLACE_ME", so a Pro build made before AdMob is set up falls back to the test id instead of
+		     crashing at startup on a malformed one. The matching ad UNIT ids are in AdsConfig.cs. -->
+		<PdfReaderRealAdMobAppId>REPLACE_ME_ADMOB_APP_ID</PdfReaderRealAdMobAppId>
+		<AndroidManifestPlaceholders Condition="'$(AdsMode)' == 'Pro' AND !$(PdfReaderRealAdMobAppId.Contains('REPLACE_ME'))">admobAppId=$(PdfReaderRealAdMobAppId)</AndroidManifestPlaceholders>
+		<AndroidManifestPlaceholders Condition="'$(AdsMode)' != 'Pro' OR $(PdfReaderRealAdMobAppId.Contains('REPLACE_ME'))">admobAppId=ca-app-pub-3940256099942544~3347511713</AndroidManifestPlaceholders>
 	</PropertyGroup>
 
 	<!-- Same Release/Debug performance tuning as DocScanner (plan section 2): LLVM AOT in Release,

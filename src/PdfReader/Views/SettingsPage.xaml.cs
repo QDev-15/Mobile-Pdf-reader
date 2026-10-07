@@ -91,7 +91,14 @@ public partial class SettingsPage : ContentPage
 		SetBusy(true);
 		try
 		{
-			PurchaseOutcome outcome = await _license.PurchaseProAsync();
+			// Hard rule: the spinner never stays up longer than 1 minute, even if Google Play never
+			// answers -- PurchaseProAsync has no cancellation hook, so on timeout it is left running.
+			(bool completed, PurchaseOutcome outcome) = await _license.PurchaseProAsync().WaitOrTimeoutAsync();
+			if (!completed)
+			{
+				await this.AlertAsync("Quá thời gian chờ", "Google Play không phản hồi sau 1 phút. Hãy thử lại.", "Đóng");
+				return;
+			}
 			switch (outcome)
 			{
 				case PurchaseOutcome.Purchased or PurchaseOutcome.AlreadyOwned:
@@ -111,7 +118,12 @@ public partial class SettingsPage : ContentPage
 		SetBusy(true);
 		try
 		{
-			PurchaseOutcome outcome = await _license.RestoreAsync();
+			(bool completed, PurchaseOutcome outcome) = await _license.RestoreAsync().WaitOrTimeoutAsync();
+			if (!completed)
+			{
+				await this.AlertAsync("Quá thời gian chờ", "Google Play không phản hồi sau 1 phút. Hãy thử lại.", "Đóng");
+				return;
+			}
 			string message = outcome switch
 			{
 				PurchaseOutcome.Purchased or PurchaseOutcome.AlreadyOwned => "Đã khôi phục: tài khoản Google Play này đã mua Pro.",

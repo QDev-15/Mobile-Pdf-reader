@@ -16,7 +16,7 @@
         <Grid x:Name="SearchRow" Grid.Row="1" IsVisible="False" ColumnDefinitions="*,Auto,Auto,Auto,Auto" Padding="12,2,4,6"
               BackgroundColor="{StaticResource MilkBackground}">
             <Entry x:Name="SearchEntry" Grid.Column="0" Placeholder="Tìm trong tài liệu" FontSize="14" ReturnType="Search"
-                   TextColor="{StaticResource OffBlack}" Completed="OnSearchCompleted" />
+                   TextColor="{StaticResource OffBlack}" Completed="OnSearchCompleted" Unfocused="OnSearchEntryUnfocused" />
             <Label x:Name="SearchCountLabel" Grid.Column="1" FontSize="12" TextColor="{StaticResource InkSoft}" VerticalOptions="Center" Margin="4,0" />
             <Button Grid.Column="2" Text="{x:Static views:Icons.ChevronLeft}" FontFamily="Icons" FontSize="24" Style="{StaticResource IconButton}" WidthRequest="40" HeightRequest="40" Clicked="OnSearchPrevClicked" />
             <Button Grid.Column="3" Text="{x:Static views:Icons.ChevronRight}" FontFamily="Icons" FontSize="24" Style="{StaticResource IconButton}" WidthRequest="40" HeightRequest="40" Clicked="OnSearchNextClicked" />

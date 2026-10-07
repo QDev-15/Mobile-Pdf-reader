@@ -19,13 +19,20 @@ public sealed class PdfOpener(PdfLibrary library, RecentPdfStore store, IAdsServ
 		Page host = UiHost.Shell;
 		try
 		{
-			string local = await library.ImportAsync(uriOrPath);
-			// One open off the UI thread answers both "needs a password?" and "how many pages?".
-			int pageCount = await ProbeAsync(local);
+			// Hard rule: no spinner waits more than 1 minute. The password prompt below is NOT part of
+			// that budget -- it is a dialog with its own Huỷ button, waiting on the person, not a stuck
+			// spinner; only the unattended disk/parse steps are timed.
+			(bool imported, string? importedPath) = await library.ImportAsync(uriOrPath).WaitOrTimeoutAsync();
+			if (!imported) throw new TimeoutException("Mở file mất hơn 1 phút nên đã dừng chờ. Hãy thử lại.");
+			string local = importedPath!;
+
+			(bool probed, int pageCount) = await ProbeAsync(local).WaitOrTimeoutAsync();
+			if (!probed) throw new TimeoutException("Đọc file mất hơn 1 phút nên đã dừng chờ. Hãy thử lại.");
 			if (pageCount < 0)
 			{
 				if (!await UnlockAsync(host, local)) return false;
-				pageCount = await ProbeAsync(local);
+				(probed, pageCount) = await ProbeAsync(local).WaitOrTimeoutAsync();
+				if (!probed) throw new TimeoutException("Đọc file mất hơn 1 phút nên đã dừng chờ. Hãy thử lại.");
 			}
 			if (pageCount == 0) throw new IOException("File PDF này không có trang nào.");
 
