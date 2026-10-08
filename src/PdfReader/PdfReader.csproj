@@ -101,6 +101,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\PdfReader.Core\PdfReader.Core.csproj" />
+		<ProjectReference Include="..\AdsService\AdsService.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

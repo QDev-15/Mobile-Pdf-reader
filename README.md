@@ -13,6 +13,9 @@ src/
                         chữ & tìm kiếm, thao tác cấu trúc PDF (PDFsharp), đọc text layer (PdfPig), ghi PDF ảnh/
                         searchable, AdsPolicy, Licensing, PdfQuality.
   ImageCore.Shared/     Thư viện xử lý ảnh thuần C# (copy từ Mobile-doc-scanner), chưa dùng tới.
+  AdsService/           Quảng cáo đa nhà cung cấp (AdMob/AppLovin/Unity LevelPlay), copy từ Mobile-doc-scanner
+                        (đợt 2026-10-08), namespace đổi từ DocScanner.AdsService thành AdsService, banner nâng
+                        cấp adaptive + Reattach() theo đúng bản PdfReader đã tự validate trước đó.
 tests/
   PdfReader.Core.Tests/ xUnit — 33 test cho PdfReader.Core.
 ```

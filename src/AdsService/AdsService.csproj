@@ -1,0 +1,78 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Reusable, multi-provider mobile ads wrapper (banner + interstitial). Android only for now, matching the
+       app. NOT a MAUI SingleProject (no UseMaui): a plain net-android class library that references
+       Microsoft.Maui.Controls directly, the same shape Plugin.AdMob itself uses, so it can expose a MAUI View +
+       Handler without needing the full MAUI app SDK surface. Intended to be dropped into other MAUI Android apps
+       unchanged: a consumer only calls MauiAppBuilder.UseAdsService(options) with the options for whichever
+       provider (AdMob / AppLovin / LevelPlay) it wants; see IAdsClient / AdsProviderOptions. Ported from the
+       sibling DocScanner repo (Mobile-doc-scanner), namespace renamed from DocScanner.AdsService to just
+       AdsService since this copy is not DocScanner-specific: see PdfReader's own AdsService.cs for this app's
+       "once an hour at a screen transition" policy built on top, and PDFREADER-PLAN.md section 6/7 for why this
+       is a copy, not a cross-repo ProjectReference. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AdsService</RootNamespace>
+    <SupportedOSPlatformVersion>26.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microsoft.Maui.Controls/.Compatibility as plain PackageReferences (not UseMaui) is exactly how
+         Plugin.AdMob itself is built (checked its .nuspec): gives View / ViewHandler<,> without pulling in
+         the full MAUI SDK project type. Plugin.AdMob also brings Xamarin.GooglePlayServices.Ads.Lite, which is
+         where Android.Gms.Ads.* (AdView, AdRequest, MobileAds...) comes from. -->
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.90" />
+    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.90" />
+    <PackageReference Include="Plugin.AdMob" Version="10.0.90" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- AppLovin MAX SDK, pulled straight from Maven and auto-bound (.NET for Android 9+ feature, no manual
+         Binding project needed). Version pinned to the real latest release on Maven Central as of 2026-10-07
+         (checked via maven-metadata.xml, not guessed). Transitive deps are Google-hosted only (verified via
+         curl against repo1.maven.org vs dl.google.com) and Bind="false": we never call their Java API directly
+         from C#, we only need the .jar/.aar present so AppLovin's own bytecode resolves; binding them too
+         would risk clashing with the Xamarin.AndroidX.* / Xamarin.GooglePlayServices.* bindings already pulled
+         in elsewhere in the app (CameraX, Plugin.AdMob, Play In-App Update). -->
+    <AndroidMavenLibrary Include="com.applovin:applovin-sdk" Version="13.6.4" />
+    <AndroidMavenLibrary Include="com.google.android.gms:play-services-ads-identifier" Version="17.1.0" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.android.gms:play-services-appset" Version="16.0.0" Repository="Google" Bind="false" />
+    <!-- androidx.browser:browser is NOT declared as a raw AndroidMavenLibrary here (unlike the two above): doing
+         so built fine in isolation but broke the full app with a D8/R8 duplicate-class error once combined with
+         the app's own Xamarin.AndroidX.Browser (pulled in transitively elsewhere, e.g. CameraX): two separate
+         copies of android.support.customtabs.ICustomTabsCallback$Default. The official NuGet below satisfies
+         AppLovin's transitive dependency on it instead, the same one already present app-wide, so there is only
+         ever one copy. -->
+
+    <!-- Unity LevelPlay (ironSource) mediation SDK, same AndroidMavenLibrary approach as AppLovin above. Version
+         pinned to the real latest release on Maven Central (maven-metadata.xml, not guessed). Its own POM
+         requires adquality-sdk in range [9.10.0,10.0.0): 9.10.0 is that range's lower/latest bound, also
+         checked on Maven Central, no further transitive deps of its own (empty dependencies list in its POM). -->
+    <AndroidMavenLibrary Include="com.unity3d.ads-mediation:mediation-sdk" Version="9.6.1" />
+    <AndroidMavenLibrary Include="com.unity3d.ads-mediation:adquality-sdk" Version="9.10.0" Bind="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Java Dependency Verification (XA4242) named these as the exact NuGet packages that already bind the
+         deeper transitive deps of the AndroidMavenLibrary items above, instead of auto-binding them a second
+         time here (which would clash with the bindings those packages already provide). Versions match what is
+         already resolved elsewhere in this solution's dependency graph (Plugin.AdMob / CameraX); found in the
+         local NuGet cache, not guessed. -->
+    <PackageReference Include="Xamarin.GooglePlayServices.Basement" Version="118.10.0.3" />
+    <PackageReference Include="Xamarin.GooglePlayServices.Base" Version="118.10.0.3" />
+    <PackageReference Include="Xamarin.GooglePlayServices.Tasks" Version="118.4.1.3" />
+    <PackageReference Include="Xamarin.AndroidX.Core" Version="1.19.0.1" />
+    <PackageReference Include="Xamarin.AndroidX.Annotation" Version="1.10.0.1" />
+    <PackageReference Include="Xamarin.Google.Guava.ListenableFuture" Version="1.0.0.32" />
+    <PackageReference Include="Xamarin.AndroidX.Collection" Version="1.6.0.1" />
+    <PackageReference Include="Xamarin.AndroidX.Concurrent.Futures" Version="1.3.0.4" />
+    <PackageReference Include="Xamarin.AndroidX.Interpolator" Version="1.0.0.37" />
+    <PackageReference Include="Xamarin.AndroidX.Browser" Version="1.10.0.1" />
+    <!-- For Unity LevelPlay's kotlin-stdlib dependency (XA4242); 2.4.0.1 because Xamarin.AndroidX.Core 1.19.0.1
+         (above) already requires at least that version transitively (NU1605 named the exact floor). -->
+    <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.4.0.1" />
+  </ItemGroup>
+
+</Project>

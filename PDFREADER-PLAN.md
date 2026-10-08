@@ -84,10 +84,20 @@
 | Nguồn | Đổi gì |
 |---|---|
 | `Source\DocScanner\Platforms\Android\AndroidDownloadsService.cs` + `Services\IDownloadsService.cs` | Đổi `Subfolder = "DocScanner"` → `"PdfReader"` |
-| `Source\DocScanner\Services\AdsService.cs`, `Views\AdBannerSurface.cs`, `Platforms\Android\AdBannerSurfaceHandler.cs`, `AdsConfig.cs` | Đổi 2 hằng số ad unit ID trong `AdsConfig.cs` (phải tạo app + ad unit mới trong AdMob console — không share được giữa 2 app) |
+| ~~`Source\DocScanner\Services\AdsService.cs`, `Views\AdBannerSurface.cs`, `Platforms\Android\AdBannerSurfaceHandler.cs`, `AdsConfig.cs`~~ **(đã làm khác, xem dưới)** | Đổi 2 hằng số ad unit ID trong `AdsConfig.cs` (phải tạo app + ad unit mới trong AdMob/AppLovin/LevelPlay console — không share được giữa 2 app) |
 | `Source\DocScanner\Services\LicenseService.cs` + `Source\DocScanner.Core\Licensing\ILicenseService.cs`, `LicenseState.cs` | Đổi hằng số `ProProductId` thành product ID mới tạo trên Play Console |
 | `Source\DocScanner.Core\Ads\AdsPolicy.cs` | Viết lại rule tần suất ("1 lần/giờ tại điểm chuyển màn hình" thay vì "mỗi 5 lần export") — giữ nguyên pattern pure-function state → next state |
 | `Source\DocScanner.Core\Export\PdfQuality.cs` | Giữ nguyên preset DPI/JPEG quality (Small/Medium/High: 150/200/300 DPI, quality 60/72/90); đổi phần encode ảnh sang `Android.Graphics.Bitmap.Compress` (hoặc SkiaSharp) thay vì GDI+ |
+
+> **Cập nhật quảng cáo (2026-10-08)**: bản kế hoạch ở trên viết trước khi tài khoản AdMob của DocScanner bị Google
+> đóng và kiến trúc ads bên đó được viết lại thành thư viện đa nhà quảng cáo (`DocScanner.AdsService`, hỗ trợ
+> AdMob/AppLovin/Unity LevelPlay, chọn bằng 1 dòng code). Đã copy thẳng thư viện đó sang đây (`src/AdsService`,
+> đổi namespace `DocScanner.AdsService` → `AdsService`) thay vì copy bản AdMob-only cũ — `Services/AdsService.cs`
+> (giữ nguyên rule "1 lần/giờ tại điểm chuyển màn hình" riêng của PdfReader) giờ nói chuyện với thư viện đó thay vì
+> thẳng với Plugin.AdMob. Tiện thể nâng cấp luôn 2 điểm PdfReader đã tự validate mà bản DocScanner gốc chưa có:
+> banner adaptive theo chiều rộng màn hình, và `Reattach()` tránh mất banner khi trang được cache/dùng lại thay vì
+> tạo mới. Nhà quảng cáo đang BẬT trong code vẫn là AdMob (id thật vẫn là `REPLACE_ME_*` trong `AdsConfig.cs`,
+> chưa tạo app/ad unit thật cho PdfReader ở bất kỳ nhà quảng cáo nào) — xem README.md mục cấu trúc.
 
 ### Không tái dùng — viết mới
 - **Keystore ký app** — bắt buộc tạo **keystore mới riêng** cho app này (không dùng chung keystore DocScanner — tách vòng đời bảo mật 2 app). Quy trình tạo (JDK `keytool`, cấu trúc `release/Signing.props` gitignored, `KEYSTORE-README.md`) thì copy nguyên làm template, chỉ chạy lại lệnh tạo keystore mới.

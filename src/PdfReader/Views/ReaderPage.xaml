@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:PdfReader.Views"
+    xmlns:ads="clr-namespace:AdsService;assembly=AdsService"
              x:Class="PdfReader.Views.ReaderPage"
              BackgroundColor="{StaticResource MilkBackground}"
              Shell.NavBarIsVisible="False">
@@ -10,7 +11,7 @@
          opening it pushes the document up instead of covering it. -->
     <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
 
-        <views:AdBannerSurface x:Name="Banner" Grid.Row="0" />
+        <ads:AdBannerSurface x:Name="Banner" Grid.Row="0" />
 
         <!-- Search bar -->
         <Grid x:Name="SearchRow" Grid.Row="1" IsVisible="False" ColumnDefinitions="*,Auto,Auto,Auto,Auto" Padding="12,2,4,6"

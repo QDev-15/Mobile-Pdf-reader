@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:PdfReader.Views"
+    xmlns:ads="clr-namespace:AdsService;assembly=AdsService"
              x:Class="PdfReader.Views.PageManagerPage"
              BackgroundColor="{StaticResource MilkBackground}"
              Shell.NavBarIsVisible="False">
@@ -58,7 +59,7 @@
             </Grid>
         </Border>
 
-        <views:AdBannerSurface x:Name="Banner" Grid.Row="3" />
+        <ads:AdBannerSurface x:Name="Banner" Grid.Row="3" />
 
         <Border x:Name="BusyPill" Grid.Row="1" IsVisible="False" HorizontalOptions="Center" VerticalOptions="Center" Padding="16,12"
                 BackgroundColor="#E61F1F1F" StrokeThickness="0" StrokeShape="RoundRectangle 18">

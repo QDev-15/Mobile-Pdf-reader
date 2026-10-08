@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:PdfReader.Views"
+    xmlns:ads="clr-namespace:AdsService;assembly=AdsService"
              x:Class="PdfReader.Views.SettingsPage"
              Title="Cài đặt"
              BackgroundColor="{StaticResource MilkBackground}"
@@ -104,6 +105,6 @@
             </VerticalStackLayout>
         </ScrollView>
 
-        <views:AdBannerSurface x:Name="Banner" Grid.Row="2" />
+        <ads:AdBannerSurface x:Name="Banner" Grid.Row="2" />
     </Grid>
 </ContentPage>
