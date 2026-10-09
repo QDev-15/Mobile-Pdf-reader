@@ -4,6 +4,7 @@ using PdfReader.Core.Licensing;
 using PdfReader.Platforms.Android;
 using PdfReader.Services;
 using PdfReader.Views;
+using PdfSharp.Pdf.IO;
 
 namespace PdfReader;
 
@@ -29,10 +30,12 @@ public static class MauiProgram
 			// providers (2026-10-08) -- AppLovinOptions / LevelPlayOptions are both available in the ported
 			// AdsService library the moment PdfReader has its own real credentials for either (a separate
 			// AdMob/AppLovin/LevelPlay app is required per app, ids cannot be shared with DocScanner's).
-			.UseAdsService(new AdMobOptions(
-				BannerAdUnitId: AdsConfig.BannerAdUnitId,
-				InterstitialAdUnitId: AdsConfig.InterstitialAdUnitId,
-				UseTestAds: useTestAds))
+			.UseAdsService(new LevelPlayOptions(
+				AppKey: LevelPlayConfig.AppKey,
+                BannerAdUnitId: useTestAds ? LevelPlayConfig.BannerAdUnitId : AdsConfig.BannerAdUnitId,
+                InterstitialAdUnitId: useTestAds ? LevelPlayConfig.InterstitialAdUnitId : AdsConfig.InterstitialAdUnitId,
+                TestMode: LevelPlayConfig.TestMode
+                ))
 			.ConfigureFonts(fonts =>
 			{
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
