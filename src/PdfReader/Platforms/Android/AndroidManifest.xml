@@ -2,17 +2,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 	<application android:allowBackup="false" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true">
 
-		<!-- AdMob (Services/AdsService.cs). ${admobAppId} comes from PdfReader.csproj's
-		     AndroidManifestPlaceholders; see the TODO there before a Play release build. -->
+		<!-- NOT a sign that AdMob is the active ad provider (it is LevelPlay: see MauiProgram.cs's
+		     UseAdsService(LevelPlayOptions)). This is mandatory regardless: AdsService.csproj depends on
+		     Plugin.AdMob for its multi-provider support, which pulls in the Google Mobile Ads SDK itself
+		     (play-services-ads-lite) as part of the APK whether or not the app's own code ever calls it.
+		     That SDK ships its own ContentProvider (MobileAdsInitProvider) which runs automatically at app
+		     process start, before any app code, and throws IllegalStateException("Missing application ID")
+		     if this meta-data is absent: confirmed on-device 2026-10-11, commenting this out crashed the
+		     app on launch every time. Google's own published TEST App ID always satisfies this startup
+		     check; using it unconditionally (not gated by AdsMode/AndroidManifestPlaceholders like before)
+		     is fine precisely because AdMob is never actually used to request or show a real ad. -->
 		<meta-data android:name="com.google.android.gms.ads.APPLICATION_ID"
-		           android:value="${admobAppId}" />
+		           android:value="ca-app-pub-3940256099942544~3347511713" />
 		<activity android:name="com.google.android.gms.ads.AdActivity"
 		          android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
 		          android:theme="@android:style/Theme.Translucent" android:exported="false" />
 	</application>
 
-	<!-- Google Play Billing (bản Pro tắt ads) + AdMob + Play In-App Update: no server of our own; the
-	     PDF itself never leaves the phone. -->
+	<!-- Google Play Billing (bản Pro tắt ads) + LevelPlay ads + Play In-App Update: no server of our own;
+	     the PDF itself never leaves the phone. -->
 	<uses-permission android:name="android.permission.INTERNET" />
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 

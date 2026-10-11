@@ -16,6 +16,13 @@ public enum AdProviderKind
 public abstract record AdsProviderOptions
 {
     public abstract AdProviderKind Kind { get; }
+
+    /// <summary>MASTER switch for ads in this build -- true by default, applies to every build configuration (Debug,
+    /// Release, APK, AAB). When false, <c>UseAdsService</c> registers a no-op provider instead of the real one: the ad
+    /// SDK is never initialised, nothing is loaded or shown, and the banner never appears. Distinct from the runtime
+    /// <see cref="IAdsClient.AreAdsEnabled"/> (the app's own ad-free condition, e.g. Pro); both must be true for ads to
+    /// show. Set it with an object initialiser: <c>new LevelPlayOptions(...) { IsAdsEnabled = false }</c>.</summary>
+    public bool IsAdsEnabled { get; init; } = true;
 }
 
 /// <param name="BannerAdUnitId">AdMob banner ad unit ID (the final <c>BannerId</c>/<c>InterstitialId</c> the

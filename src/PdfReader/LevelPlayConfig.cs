@@ -11,8 +11,8 @@ namespace PdfReader
         public const string InterstitialAdUnitId = "geri7xih9uhw31sv";
 
         /// <summary>Turns on LevelPlay's own adapter debug logging (<c>LevelPlay.SetAdaptersDebug</c>). Debug builds
-        /// only, same split as <see cref="AdsConfig.UseTestAds"/> -- does not affect which ad unit IDs are used,
-        /// only how chatty the SDK's own logcat output is.</summary>
+        /// only -- does not affect which ad unit IDs are used (that split is <c>MauiProgram</c>'s own
+        /// <c>useTestAds</c> local), only how chatty the SDK's own logcat output is.</summary>
 #if DEBUG
         public const bool TestMode = true;
 #else

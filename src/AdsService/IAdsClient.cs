@@ -15,6 +15,10 @@ public interface IAdsClient
     /// flipping it back to true needs no reload.</summary>
     bool AreAdsEnabled { get; set; }
 
+    /// <summary>The build-level MASTER switch (<see cref="AdsProviderOptions.IsAdsEnabled"/>), fixed for the process
+    /// lifetime. When false no ad SDK was initialised and <see cref="AreAdsEnabled"/> always reads false.</summary>
+    bool IsAdsEnabled { get; }
+
     /// <summary>True only while the shared banner actually has a creative on screen right now -- false before
     /// the first load, while a refresh is in flight, and whenever the last load/refresh attempt failed.</summary>
     bool IsBannerLoaded { get; }

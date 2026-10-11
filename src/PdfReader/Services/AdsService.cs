@@ -45,21 +45,27 @@ public sealed class AdsService : IAdsService
     private readonly ILicenseService _license;
     private readonly AdsClient _ads;
 
+    // The build-level master switch (PdfReader.csproj's AdsEnabled MSBuild property -> AdsProviderOptions.IsAdsEnabled,
+    // enforced inside the AdsService library: when off the ad SDK is never initialised and nothing loads). It is still
+    // folded into "treat as Pro" here, so every existing Pro-gated branch below -- ShowAds, AreAdsEnabled, and both
+    // AdsPolicy calls that decide whether to show an interstitial -- does the right thing with no further changes.
+    private bool IsProOrAdsDisabled => !_ads.IsAdsEnabled || _license.State.IsPro;
+
     public AdsService(ILicenseService license, AdsClient ads)
     {
         _license = license;
         _ads = ads;
-        _ads.AreAdsEnabled = !_license.State.IsPro;
+        _ads.AreAdsEnabled = !IsProOrAdsDisabled;
         _license.Changed += () =>
         {
-            _ads.AreAdsEnabled = !_license.State.IsPro;
+            _ads.AreAdsEnabled = !IsProOrAdsDisabled;
             Changed?.Invoke();
         };
         _ads.BannerStateChanged += () => Changed?.Invoke();
         _ads.PrepareInterstitial(); // one kept ready at all times, so a due transition rarely has to skip
     }
 
-    public bool ShowAds => !_license.State.IsPro;
+    public bool ShowAds => !IsProOrAdsDisabled;
 
     public bool IsBannerLoaded => _ads.IsBannerLoaded;
 
@@ -77,7 +83,7 @@ public sealed class AdsService : IAdsService
             return;
         }
         var state = new AdsState(ticks == 0 ? null : new DateTimeOffset(ticks, TimeSpan.Zero));
-        (AdsState next, bool show) = AdsPolicy.AtScreenTransition(state, _license.State.IsPro, DateTimeOffset.UtcNow);
+        (AdsState next, bool show) = AdsPolicy.AtScreenTransition(state, IsProOrAdsDisabled, DateTimeOffset.UtcNow);
         Preferences.Default.Set(StateKey, next.LastShownUtc?.UtcTicks ?? 0L);
 
         if (show) _ads.ShowInterstitialIfReady(); // no-op quietly if not actually ready yet -- see IAdsClient
@@ -87,7 +93,7 @@ public sealed class AdsService : IAdsService
     public void RegisterExternalOpen()
     {
         int count = Preferences.Default.Get(ExternalKey, 0);
-        (int next, bool show) = AdsPolicy.AtExternalOpen(count, _license.State.IsPro);
+        (int next, bool show) = AdsPolicy.AtExternalOpen(count, IsProOrAdsDisabled);
         Preferences.Default.Set(ExternalKey, next);
         if (show) _ads.ShowInterstitialIfReady();
         _ads.PrepareInterstitial();

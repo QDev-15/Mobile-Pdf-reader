@@ -1,3 +1,4 @@
+using PdfReader.Core.Licensing;
 using PdfReader.Models;
 using PdfReader.Services;
 
@@ -11,20 +12,40 @@ public partial class DashboardPage : ContentPage
 	private IReadOnlyList<RecentPdfRecord> _all = [];
 	private DateTime _lastBackPress = DateTime.MinValue;
 
-	public DashboardPage(RecentPdfStore store, PdfLibrary library, PdfOpener opener)
+	private readonly ILicenseService _license;
+	private readonly ProUpgrade _proUpgrade;
+
+	public DashboardPage(RecentPdfStore store, PdfLibrary library, PdfOpener opener, ILicenseService license, ProUpgrade proUpgrade)
 	{
 		InitializeComponent();
 		_store = store;
 		_library = library;
 		_opener = opener;
+		_license = license;
+		_proUpgrade = proUpgrade;
 	}
 
 	protected override async void OnAppearing()
 	{
 		base.OnAppearing();
 		Banner.Reattach();
+		_license.Changed += OnLicenseChanged;
+		UpdateCrown();
 		await ReloadListAsync();
 	}
+
+	protected override void OnDisappearing()
+	{
+		base.OnDisappearing();
+		_license.Changed -= OnLicenseChanged;
+	}
+
+	/// <summary>The gold crown (buy Pro / remove ads) is shown only while the user is on the free tier.</summary>
+	private void UpdateCrown() => CrownButton.IsVisible = !_license.State.IsPro;
+
+	private void OnLicenseChanged() => MainThread.BeginInvokeOnMainThread(UpdateCrown);
+
+	private async void OnProClicked(object? sender, EventArgs e) => await _proUpgrade.ShowAsync(this);
 
 	/// <summary>Back on the Dashboard closes what is open first (pop-up, search), and only exits the app on a
 	/// second press within two seconds, so one stray tap cannot throw the person out.</summary>

@@ -21,7 +21,7 @@
 		<ApplicationTitle>PDF Reader</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>btk.pdfreader</ApplicationId>
+		<ApplicationId>com.tonyq.pdfreader</ApplicationId>
 
 		<!-- Versions. Bump ApplicationVersion (Android versionCode) on every build going to a device or to Play. -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
@@ -30,23 +30,33 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">26.0</SupportedOSPlatformVersion>
 
 		<!-- Ads mode: independent of Configuration (Debug/Release) and of APK vs AAB. "Dev" (the
-		     default, if not passed on the command line) always requests Google's TEST ad App ID + ad
-		     units, whatever is being built, so a Release .aab uploaded to a Play internal/closed testing
-		     track still shows test ads and can never trigger an invalid-click policy strike. Only "Pro"
-		     switches to the real ids below, and only when explicitly passed:
+		     default, if not passed on the command line) always requests the active provider's own
+		     test/sandbox ad units (LevelPlayConfig.cs), whatever is being built, so a Release .aab
+		     uploaded to a Play internal/closed testing track still shows test ads and can never trigger
+		     an invalid-click policy strike. Only "Pro" switches to the real ids (RealAdsConfig.cs), and
+		     only when explicitly passed:
 		       dotnet publish src/PdfReader -f net10.0-android -c Release -p:AndroidPackageFormat=aab -p:AdsMode=Pro
 		     for the one build that actually goes to Play for real. -->
 		<AdsMode Condition="'$(AdsMode)' == ''">Dev</AdsMode>
 		<DefineConstants Condition="'$(AdsMode)' == 'Pro'">$(DefineConstants);ADS_MODE_PRO</DefineConstants>
 
-		<!-- AdMob App ID: Google's published TEST id by default. TODO: once a real AdMob app exists for
-		     PdfReader (cannot share DocScanner's, plan section 6/8), put its real App ID here. It only
-		     actually gets used when AdsMode=Pro (below), and even then only once it no longer contains
-		     "REPLACE_ME", so a Pro build made before AdMob is set up falls back to the test id instead of
-		     crashing at startup on a malformed one. The matching ad UNIT ids are in AdsConfig.cs. -->
-		<PdfReaderRealAdMobAppId>REPLACE_ME_ADMOB_APP_ID</PdfReaderRealAdMobAppId>
-		<AndroidManifestPlaceholders Condition="'$(AdsMode)' == 'Pro' AND !$(PdfReaderRealAdMobAppId.Contains('REPLACE_ME'))">admobAppId=$(PdfReaderRealAdMobAppId)</AndroidManifestPlaceholders>
-		<AndroidManifestPlaceholders Condition="'$(AdsMode)' != 'Pro' OR $(PdfReaderRealAdMobAppId.Contains('REPLACE_ME'))">admobAppId=ca-app-pub-3940256099942544~3347511713</AndroidManifestPlaceholders>
+		<!-- Ads kill switch for a Play Console testing build: even test/sandbox ad creatives are real,
+		     clickable UI that a reviewer or closed-tester could tap by accident, so a build meant purely to
+		     verify app behaviour (not ads) can skip ads entirely with:
+		       dotnet publish src/PdfReader -f net10.0-android -c Release -p:AndroidPackageFormat=aab -p:AdsEnabled=false
+		     Feeds AdsProviderOptions.IsAdsEnabled (MauiProgram.cs): the master ads switch in the shared AdsService
+		     library, same property and meaning as in DocScanner. Off = the ad SDK is not even initialised and nothing
+		     loads, in every build type. Independent of AdsMode above: leave AdsMode at its default. -->
+		<AdsEnabled Condition="'$(AdsEnabled)' == ''">true</AdsEnabled>
+		<DefineConstants Condition="'$(AdsEnabled)' == 'false'">$(DefineConstants);ADS_DISABLED</DefineConstants>
+
+		<!-- There used to be a PdfReaderRealAdMobAppId + AndroidManifestPlaceholders pair here, gating the
+		     AdMob App ID meta-data in AndroidManifest.xml on AdsMode. Removed 2026-10-11: that meta-data
+		     turned out to be mandatory regardless of AdsMode or which ad provider is active (the bundled
+		     Google Mobile Ads SDK crashes on startup without it: see AndroidManifest.xml's own comment on
+		     that meta-data for why), so it is now just Google's published TEST App ID, hardcoded directly in
+		     the manifest, unconditionally. The real production ad unit ids (for whichever provider is
+		     active, LevelPlay right now) live in RealAdsConfig.cs, which is unrelated to this. -->
 	</PropertyGroup>
 
 	<!-- Same Release/Debug performance tuning as DocScanner (plan section 2): LLVM AOT in Release,
@@ -84,12 +94,17 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Plugin.AdMob 10.0.90 needs Microsoft.Maui.Controls >= 10.0.90 (same pin as DocScanner). -->
+		<!-- Plugin.AdMob 10.0.90 (see the commented-out PackageReference below) needs
+		     Microsoft.Maui.Controls >= 10.0.90 (same pin as DocScanner); kept at this version regardless. -->
 		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.90" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
-		<!-- MIT: banner + interstitial ads for the free tier (Services/AdsService.cs). Pulls in the
-		     Google Mobile Ads SDK itself (proprietary, Google's own terms). -->
+		<!-- AdMob is NOT the active ad provider (see MauiProgram.cs): this direct reference is unused;
+		     AdsService.csproj's own ProjectReference already pulls Plugin.AdMob transitively for its
+		     multi-provider support, which is all this app currently needs. Left commented out as part of
+		     the AdMob switch-over template (PdfReader.csproj's AdMob App ID block + AndroidManifest.xml's
+		     AdMob meta-data block): uncomment all three together if PdfReader switches back to AdMob.
 		<PackageReference Include="Plugin.AdMob" Version="10.0.90" />
+		-->
 		<!-- MIT: Play Billing wrapper for the Pro unlock (Services/LicenseService.cs). -->
 		<PackageReference Include="Plugin.InAppBilling" Version="10.0.0" />
 		<PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" Version="1.9.0" />

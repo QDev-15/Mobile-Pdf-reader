@@ -15,8 +15,12 @@ public class MainActivity : MauiAppCompatActivity
 {
 	protected override void OnCreate(Bundle? savedInstanceState)
 	{
-		base.OnCreate(savedInstanceState);
+		// Must run before base.OnCreate: that call is what builds AppShell, and AppShell's
+		// constructor reads PendingPdfOpen.Uri to decide whether to skip the Dashboard. Resolving
+		// the intent afterward left the Uri unset at construction time, so a cold "Open with" launch
+		// always showed the Dashboard first and only then jumped to the reader.
 		ResolvePendingOpen(Intent);
+		base.OnCreate(savedInstanceState);
 	}
 
 	// LaunchMode.SingleTop: an already-running activity gets the new Intent here instead of a fresh
