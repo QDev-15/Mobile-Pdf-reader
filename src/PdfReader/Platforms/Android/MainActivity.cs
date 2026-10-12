@@ -19,7 +19,10 @@ public class MainActivity : MauiAppCompatActivity
 		// constructor reads PendingPdfOpen.Uri to decide whether to skip the Dashboard. Resolving
 		// the intent afterward left the Uri unset at construction time, so a cold "Open with" launch
 		// always showed the Dashboard first and only then jumped to the reader.
-		ResolvePendingOpen(Intent);
+		//
+		// notify: false -- the AppShell this OnCreate is about to build (inside base.OnCreate below)
+		// reads the Uri itself; nothing must react to it before that, see PendingPdfOpen's class comment.
+		ResolvePendingOpen(Intent, notify: false);
 		base.OnCreate(savedInstanceState);
 	}
 
@@ -29,7 +32,8 @@ public class MainActivity : MauiAppCompatActivity
 	{
 		base.OnNewIntent(intent);
 		Intent = intent;
-		ResolvePendingOpen(intent);
+		// notify: true -- no new AppShell is being built here, so the existing (live) one must be told.
+		ResolvePendingOpen(intent, notify: true);
 	}
 
 	/// <summary>Google's own recommended hook for in-app updates: re-checks every time the app comes
@@ -40,7 +44,7 @@ public class MainActivity : MauiAppCompatActivity
 		Services.AndroidAppUpdate.CheckAndForce(this);
 	}
 
-	private static void ResolvePendingOpen(Intent? intent)
+	private static void ResolvePendingOpen(Intent? intent, bool notify)
 	{
 		if (intent == null) return;
 		Android.Net.Uri? uri = intent.Action switch
@@ -51,6 +55,8 @@ public class MainActivity : MauiAppCompatActivity
 				: intent.GetParcelableExtra(Intent.ExtraStream) as Android.Net.Uri,
 			_ => null,
 		};
-		if (uri != null) Services.PendingPdfOpen.Set(uri.ToString()!);
+		if (uri == null) return;
+		if (notify) Services.PendingPdfOpen.SetAndNotify(uri.ToString()!);
+		else Services.PendingPdfOpen.Set(uri.ToString()!);
 	}
 }

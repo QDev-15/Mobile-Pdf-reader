@@ -236,6 +236,8 @@ public partial class PageManagerPage : ContentPage
 	private async void OnSaveClicked(object? sender, EventArgs e)
 	{
 		if (Source == null || _items.Count == 0) return;
+		string? fileName = await this.NamePdfAsync($"{ResultService.BaseName(DisplayName ?? "PDF")}_sap-xep");
+		if (fileName == null) return;
 		string source = Source;
 		List<PageEdit> edits = _items.Select(i => new PageEdit(i.SourceIndex, i.Rotation)).ToList();
 		string output = _library.NewWorkFile();
@@ -261,6 +263,6 @@ public partial class PageManagerPage : ContentPage
 		{
 			BusyPill.IsVisible = false;
 		}
-		await _results.DeliverPdfAsync(output, $"{ResultService.BaseName(DisplayName ?? "PDF")}_sap-xep.pdf");
+		await _results.DeliverPdfAsync(output, fileName);
 	}
 }

@@ -68,6 +68,20 @@
 	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
 		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
 		<EnableLLVM>true</EnableLLVM>
+
+		<!-- R8 code shrinking for the Java/Kotlin side (AndroidX, Play Services, ML Kit, AppLovin/Unity
+		     ads SDKs, ...). Baseline Release DEX measured 2026-10-12: ~27 MB across 3 dex files, well past
+		     the 10 MB Google Play now flags under "DEX code optimization" (shrinking/optimization/
+		     obfuscation must each be >=25%, enforced from Feb 2027). This is the fix for the
+		     shrinking/optimization half of that score, and may well drop the app under 10 MB outright,
+		     which would exempt it from the requirement entirely regardless of the obfuscation score.
+		     Real Java-level OBFUSCATION (the third score) is NOT available: the installed SDK
+		     (Microsoft.Android.Sdk.Windows 36.1.69, .NET 10 GA) hard-codes -dontobfuscate into R8's config
+		     unconditionally (confirmed 2026-10-12 by inspecting Xamarin.Android.Build.Tasks.dll: it
+		     contains the string "dontobfuscate" but not the newer AndroidR8ObfuscationMode property a
+		     later .NET 10 servicing / .NET 11 release is expected to add). Revisit once an updated workload
+		     exposes that property. -->
+		<AndroidLinkTool>r8</AndroidLinkTool>
 	</PropertyGroup>
 
 	<!-- Release signing (Google Play upload key): keystore + passwords are NOT in this file. A new,
@@ -116,7 +130,15 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\PdfReader.Core\PdfReader.Core.csproj" />
-		<ProjectReference Include="..\AdsService\AdsService.csproj" />
+		<!-- One project per ad network (2026-10-12 split, replacing a single AdsService project + a
+		     build-flag that compiled all three in and excluded two): only the network actually used,
+		     Unity LevelPlay (MauiProgram.cs's UseLevelPlayAds call), is referenced, so AdMob's and
+		     AppLovin's SDKs are never even a candidate dependency here. AdsService.Core (IAdsClient, the
+		     banner View/Handler) comes along transitively through this reference. To switch providers:
+		     reference AdsService.AdMob or AdsService.AppLovin here instead, and call that project's own
+		     UseAdMobAds / UseAppLovinAds in MauiProgram.cs instead of UseLevelPlayAds; see that file's
+		     comment. -->
+		<ProjectReference Include="..\AdsService.LevelPlay\AdsService.LevelPlay.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

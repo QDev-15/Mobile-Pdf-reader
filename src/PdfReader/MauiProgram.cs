@@ -28,11 +28,14 @@ public static class MauiProgram
 			.UseMauiApp<App>()
 			// ===== ACTIVE ad provider: Unity LevelPlay. =====
 			// AppKey + test/sandbox ad unit ids live in LevelPlayConfig.cs; the production ids (used once
-			// useTestAds is false) live in RealAdsConfig.cs. Exactly one provider block in this file should
-			// ever be uncommented -- see the AdMob / AppLovin alternatives commented out below, kept only as
-			// a template for switching providers later (a separate app/account + credentials is required per
+			// useTestAds is false) live in RealAdsConfig.cs. Switching providers (2026-10-12: one project per
+			// network, see AdsService.Core.csproj's comment) means referencing a different AdsService.Xxx
+			// project in PdfReader.csproj AND calling that provider's own UseXxxAds here instead -- see the
+			// AdMob / AppLovin alternatives commented out below, kept only as a template; neither project is
+			// referenced by PdfReader today, so uncommenting these alone will not compile until the matching
+			// ProjectReference is added too (a separate app/account + credentials is also required per
 			// provider, ids cannot be shared with DocScanner's).
-			.UseAdsService(new LevelPlayOptions(
+			.UseLevelPlayAds(new LevelPlayOptions(
 				AppKey: LevelPlayConfig.AppKey,
                 BannerAdUnitId: useTestAds ? LevelPlayConfig.BannerAdUnitId : RealAdsConfig.BannerAdUnitId,
                 InterstitialAdUnitId: useTestAds ? LevelPlayConfig.InterstitialAdUnitId : RealAdsConfig.InterstitialAdUnitId,
@@ -47,14 +50,16 @@ public static class MauiProgram
 #endif
             })
 			// ===== INACTIVE alternatives -- not wired up, kept only as a switch-over template. =====
-			// AdMob: also needs the AdMob App ID block in PdfReader.csproj + AndroidManifest.xml (both
-			// currently commented out there too -- uncomment all three together).
-			// .UseAdsService(new AdMobOptions(
+			// AdMob: add <ProjectReference Include="..\AdsService.AdMob\AdsService.AdMob.csproj" /> to
+			// PdfReader.csproj (and drop the AdsService.LevelPlay one above), plus the AdMob App ID block in
+			// PdfReader.csproj + AndroidManifest.xml (both currently commented out there too).
+			// .UseAdMobAds(new AdMobOptions(
 			//     BannerAdUnitId: useTestAds ? "ca-app-pub-3940256099942544/6300978111" : RealAdsConfig.BannerAdUnitId,
 			//     InterstitialAdUnitId: useTestAds ? "ca-app-pub-3940256099942544/1033173712" : RealAdsConfig.InterstitialAdUnitId,
 			//     UseTestAds: useTestAds))
-			// AppLovin:
-			// .UseAdsService(new AppLovinOptions(
+			// AppLovin: add <ProjectReference Include="..\AdsService.AppLovin\AdsService.AppLovin.csproj" />
+			// to PdfReader.csproj (and drop the AdsService.LevelPlay one above).
+			// .UseAppLovinAds(new AppLovinOptions(
 			//     SdkKey: "REPLACE_ME_APPLOVIN_SDK_KEY",
 			//     BannerAdUnitId: RealAdsConfig.BannerAdUnitId,
 			//     InterstitialAdUnitId: RealAdsConfig.InterstitialAdUnitId,

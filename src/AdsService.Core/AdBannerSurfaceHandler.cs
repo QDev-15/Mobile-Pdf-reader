@@ -44,7 +44,7 @@ internal sealed class AdBannerSurfaceHandler : ViewHandler<AdBannerSurface, Fram
     private void Attach(FrameLayout container)
     {
         AdsClient client = IPlatformApplication.Current?.Services.GetService<AdsClient>()
-            ?? throw new InvalidOperationException("AdsService: MauiAppBuilder.UseAdsService(...) was never called.");
+            ?? throw new InvalidOperationException("AdsService: no UseXxxAds(...) was called (UseAdMobAds / UseAppLovinAds / UseLevelPlayAds).");
         // null while ads are not allowed (Pro user / master switch off): leave the container empty, the ad SDK untouched.
         View? banner = client.GetBannerView(Context);
         if (banner is null) return;

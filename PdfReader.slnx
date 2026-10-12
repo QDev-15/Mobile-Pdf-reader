@@ -1,6 +1,9 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/AdsService/AdsService.csproj" />
+    <Project Path="src/AdsService.Core/AdsService.Core.csproj" />
+    <Project Path="src/AdsService.AdMob/AdsService.AdMob.csproj" />
+    <Project Path="src/AdsService.AppLovin/AdsService.AppLovin.csproj" />
+    <Project Path="src/AdsService.LevelPlay/AdsService.LevelPlay.csproj" />
     <Project Path="src/ImageCore.Shared/ImageCore.Shared.csproj" />
     <Project Path="src/PdfReader.Core/PdfReader.Core.csproj" />
     <Project Path="src/PdfReader/PdfReader.csproj" />

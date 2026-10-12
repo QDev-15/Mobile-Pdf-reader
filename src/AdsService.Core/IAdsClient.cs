@@ -1,6 +1,7 @@
 namespace AdsService;
 
-/// <summary>The provider-agnostic surface an app talks to after <c>MauiAppBuilder.UseAdsService</c>: load/show
+/// <summary>The provider-agnostic surface an app talks to after calling one of the provider-specific
+/// <c>UseXxxAds</c> extensions (<c>UseAdMobAds</c> / <c>UseAppLovinAds</c> / <c>UseLevelPlayAds</c>): load/show
 /// state for the shared banner and the interstitial, whichever network is actually configured underneath.
 /// Deliberately knows nothing about "Pro" or app-specific cadence rules (e.g. DocScanner's "every 5th PDF
 /// export" vs PdfReader's "once an hour at a screen transition") -- that policy belongs in the consuming app

@@ -1,4 +1,5 @@
 using PdfReader.Core;
+using PdfReader.Services;
 
 namespace PdfReader.Views;
 
@@ -127,6 +128,30 @@ public static class Dialogs
 				}, bold: true),
 			]);
 		}, null);
+
+	/// <summary>Asks for a name for a single new PDF about to be created (export, compress, OCR,
+	/// password, page-sort...), pre-filled with <paramref name="suggestedName"/> -- the system's own
+	/// suggestion, built from the original document's name. Every one of those flows must offer this, not
+	/// just silently pick the suggested name itself. Returns the sanitized name with ".pdf" already
+	/// appended, or null when cancelled or left empty (the caller aborts the whole export on null, same
+	/// as any other Huỷ).</summary>
+	public static async Task<string?> NamePdfAsync(this Page host, string suggestedName)
+	{
+		string? input = await host.PromptAsync("Tên file", "Đặt tên cho file mới", "Tiếp", "Huỷ", initialValue: suggestedName, maxLength: 120);
+		if (string.IsNullOrWhiteSpace(input)) return null;
+		string name = ResultService.SafeName(input.Trim());
+		return name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? name : name + ".pdf";
+	}
+
+	/// <summary>Same idea as <see cref="NamePdfAsync"/>, for a flow that creates SEVERAL files at once
+	/// (split parts, one image per page): asks for the shared base name once, and each file keeps its own
+	/// distinguishing suffix and extension appended after it. Returns the sanitized base name (no
+	/// extension), or null when cancelled or left empty.</summary>
+	public static async Task<string?> NameFileBaseAsync(this Page host, string title, string suggestedName)
+	{
+		string? input = await host.PromptAsync(title, "Đặt tên cho các file mới (mỗi file sẽ thêm hậu tố riêng)", "Tiếp", "Huỷ", initialValue: suggestedName, maxLength: 100);
+		return string.IsNullOrWhiteSpace(input) ? null : ResultService.SafeName(input.Trim());
+	}
 
 	/// <summary>A short message at the bottom of the page: rounded, grey, black text, gone after ~2 s. Replaces the
 	/// stock Android toast, which cannot be styled.</summary>

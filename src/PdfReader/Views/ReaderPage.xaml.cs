@@ -1190,6 +1190,8 @@ public partial class ReaderPage : ContentPage
 		}
 		string? source = await SourceWithAnnotationsAsync();
 		if (source == null) return;
+		string? baseName = await this.NameFileBaseAsync("Tách PDF", BaseName);
+		if (baseName == null) return;
 
 		var parts = new List<(string File, string Name)>();
 		bool ok = await RunJobAsync("Đang tách…", p => Task.Run(() =>
@@ -1197,7 +1199,7 @@ public partial class ReaderPage : ContentPage
 			PdfStructureOps.Split(source, ranges, i =>
 			{
 				string file = _library.NewWorkFile();
-				parts.Add((file, $"{BaseName}_trang-{ranges[i].Start + 1}-{ranges[i].End + 1}.pdf"));
+				parts.Add((file, $"{baseName}_trang-{ranges[i].Start + 1}-{ranges[i].End + 1}.pdf"));
 				return file;
 			});
 		}));
@@ -1209,6 +1211,8 @@ public partial class ReaderPage : ContentPage
 		if (_session == null) return;
 		PdfQuality? quality = await AskQualityAsync();
 		if (quality == null) return;
+		string? fileName = await this.NamePdfAsync($"{BaseName}_nen");
+		if (fileName == null) return;
 		string? file = null;
 		bool ok = await RunJobAsync("Đang nén…", async p => file = await _exporter.CompressAsync(_session, quality, p));
 		if (!ok || file == null) return;
@@ -1222,7 +1226,7 @@ public partial class ReaderPage : ContentPage
 				return;
 			}
 		}
-		await _results.DeliverPdfAsync(file, $"{BaseName}_nen.pdf");
+		await _results.DeliverPdfAsync(file, fileName);
 	}
 
 	private async Task MakeSearchableAsync()
@@ -1232,6 +1236,8 @@ public partial class ReaderPage : ContentPage
 		if (!go) return;
 		PdfQuality? quality = await AskQualityAsync();
 		if (quality == null) return;
+		string? fileName = await this.NamePdfAsync($"{BaseName}_ocr");
+		if (fileName == null) return;
 
 		string? file = null;
 		bool ok = await RunJobAsync("Nhận dạng chữ…", async p => file = await _exporter.MakeSearchableAsync(_session, quality, p));
@@ -1241,7 +1247,7 @@ public partial class ReaderPage : ContentPage
 			await this.AlertAsync("PDF tìm kiếm được", "Mọi trang đã có chữ, hoặc không nhận dạng được chữ nào — không cần tạo bản mới.", "Đóng");
 			return;
 		}
-		await _results.DeliverPdfAsync(file, $"{BaseName}_ocr.pdf");
+		await _results.DeliverPdfAsync(file, fileName);
 	}
 
 	private async Task PagesToImagesAsync()
@@ -1260,12 +1266,14 @@ public partial class ReaderPage : ContentPage
 		string? format = await this.ChoiceAsync("Định dạng ảnh", "Huỷ", null, "PNG (nét, nặng hơn)", "JPG (nhẹ hơn)");
 		if (format == null) return;
 		bool png = format.StartsWith("PNG");
+		string? baseName = await this.NameFileBaseAsync("Chuyển trang thành ảnh", BaseName);
+		if (baseName == null) return;
 
 		IReadOnlyList<string> files = [];
 		bool ok = await RunJobAsync("Đang chuyển thành ảnh…", async p => files = await _exporter.PagesToImagesAsync(_session, pages, png, 150, p));
 		if (!ok) return;
 		string ext = png ? "png" : "jpg";
-		var named = files.Select((f, i) => (f, $"{BaseName}_trang-{pages[i] + 1}.{ext}")).ToList();
+		var named = files.Select((f, i) => (f, $"{baseName}_trang-{pages[i] + 1}.{ext}")).ToList();
 		await _results.SaveManyToDownloadsAsync(named, png ? "image/png" : "image/jpeg");
 	}
 
@@ -1274,11 +1282,13 @@ public partial class ReaderPage : ContentPage
 		if (_session == null) return;
 		string? password = await this.PromptAsync("Đặt mật khẩu", "Nhập mật khẩu để mở bản PDF mới. Hãy nhớ nó — không có cách khôi phục.", "Tạo", "Huỷ", "Mật khẩu", maxLength: 64);
 		if (string.IsNullOrEmpty(password)) return;
+		string? fileName = await this.NamePdfAsync($"{BaseName}_mat-khau");
+		if (fileName == null) return;
 		string? source = await SourceWithAnnotationsAsync();
 		if (source == null) return;
 		string? file = null;
 		bool ok = await RunJobAsync("Đang mã hoá…", async _ => file = await _exporter.ProtectAsync(source, password));
-		if (ok && file != null) await _results.DeliverPdfAsync(file, $"{BaseName}_mat-khau.pdf");
+		if (ok && file != null) await _results.DeliverPdfAsync(file, fileName);
 	}
 
 	private void AddPageNumbers()

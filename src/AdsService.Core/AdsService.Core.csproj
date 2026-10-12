@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Provider-agnostic core of the ads library: IAdsClient / AdsClient, the shared AdBannerSurface View +
+       Handler, IAdProvider, DisabledAdProvider, and the AdsProviderOptions base. No ad network SDK referenced
+       here at all; that is the whole point of the split (2026-10-12, replacing the single-project
+       "AdsActiveProviders" build-flag approach): a consuming app references THIS project plus exactly the
+       provider project(s) it actually uses (AdsService.AdMob / AdsService.AppLovin / AdsService.LevelPlay),
+       so an unused network's SDK is never even a candidate for the dependency graph, instead of being pulled
+       in and then conditionally excluded. See each provider project's own csproj comment, and PdfReader.csproj's
+       ProjectReference to AdsService.LevelPlay, for the concrete numbers this was worth (Play Console's "DEX
+       code optimization" check: ~27 MB with every provider compiled in and no shrinking, ~14.3 MB with R8 +
+       only the provider actually used). Ported from the sibling DocScanner repo (Mobile-doc-scanner), same as
+       the rest of this library: a copy, not a cross-repo ProjectReference (PDFREADER-PLAN.md section 6/7). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AdsService</RootNamespace>
+    <SupportedOSPlatformVersion>26.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microsoft.Maui.Controls/.Compatibility as plain PackageReferences (not UseMaui) is exactly how
+         Plugin.AdMob itself is built (checked its .nuspec): gives View / ViewHandler<,> / MauiAppBuilder
+         without pulling in the full MAUI SDK project type. -->
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.90" />
+    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.90" />
+  </ItemGroup>
+
+</Project>

@@ -3,7 +3,8 @@ using View = Android.Views.View;
 
 namespace AdsService.Internal;
 
-/// <summary>The one <see cref="IAdsClient"/> implementation, registered as a singleton by <c>UseAdsService</c>.
+/// <summary>The one <see cref="IAdsClient"/> implementation, registered as a singleton by
+/// <c>AdsServiceCoreExtensions.UseAdsCore</c> (called by whichever provider's own <c>UseXxxAds</c> the app used).
 ///
 /// The real <see cref="IAdProvider"/> (and with it the ad network's SDK) is created LAZILY, the first time something
 /// actually needs to show or load an ad while ads are allowed. Ads are allowed only when BOTH the build-level master
