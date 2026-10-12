@@ -25,7 +25,7 @@
 
 		<!-- Versions. Bump ApplicationVersion (Android versionCode) on every build going to a device or to Play. -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-		<ApplicationVersion>2</ApplicationVersion>
+		<ApplicationVersion>3</ApplicationVersion>
 
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">26.0</SupportedOSPlatformVersion>
 
@@ -82,6 +82,23 @@
 		     later .NET 10 servicing / .NET 11 release is expected to add). Revisit once an updated workload
 		     exposes that property. -->
 		<AndroidLinkTool>r8</AndroidLinkTool>
+
+		<!-- IL trimming on the .NET/C# side: a DIFFERENT lever from AndroidLinkTool above, and the
+		     default (AndroidLinkMode=None: no trimming at all, confirmed 2026-10-12 by reading
+		     Microsoft.Android.Sdk.DefaultProperties.targets) turned out to be why R8 alone plateaued at
+		     ~13.2 MB instead of going lower: with no C# linking, .NET for Android cannot tell which bound
+		     Java types a referenced binding assembly (Xamarin.Google.Crypto.Tink.Android, AndroidX
+		     Material/ConstraintLayout/Window, Glide, Firebase/Datatransport, all transitive, never
+		     called directly from this app's own C#) are actually reachable, so it defensively emits an R8
+		     "ACW" -keep rule for EVERY type in EVERY one of them (proguard_project_references.cfg: 1208
+		     keep rules just for Tink, confirmed by dexdump class-count analysis the same day: Tink alone
+		     was 2069 of the ~16 300 classes in the DEX). Full trims the WHOLE dependency graph, C# side
+		     first, so an unreachable binding's keep rule is never generated for R8 to honour.
+		     Meaningfully riskier than AndroidLinkTool alone: this can remove a type that is only ever
+		     reached through reflection (late-bound DI, JSON binding without a source-generated context,
+		     a few remaining reflection paths). Needs an actual on-device smoke test of every feature
+		     (export, OCR, ads, Play Billing, Play Core update) before shipping, not just "it still builds". -->
+		<AndroidLinkMode>Full</AndroidLinkMode>
 	</PropertyGroup>
 
 	<!-- Release signing (Google Play upload key): keystore + passwords are NOT in this file. A new,
