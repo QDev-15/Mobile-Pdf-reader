@@ -52,7 +52,7 @@ public partial class SettingsPage : ContentPage
 		_license.Changed -= OnLicenseChanged;
 	}
 
-	protected override bool OnBackButtonPressed() => Dialogs.TryDismiss() || base.OnBackButtonPressed();
+	protected override bool OnBackButtonPressed() => this.TryDismiss() || base.OnBackButtonPressed();
 
 	private void OnLicenseChanged() => MainThread.BeginInvokeOnMainThread(() =>
 	{

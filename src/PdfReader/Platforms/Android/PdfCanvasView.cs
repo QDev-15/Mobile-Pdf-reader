@@ -1180,7 +1180,7 @@ public sealed class PdfCanvasView : AView
 			ShowToast("Không tìm thấy chữ trên trang này.");
 			return;
 		}
-		int word = text.HitTest(nx, ny, 0.05f);
+		int word = text.HitTest(nx, ny, PageAspect(page), 0.05f);
 		if (word < 0) return;
 		DeselectAnnotation();
 		_selText = text;

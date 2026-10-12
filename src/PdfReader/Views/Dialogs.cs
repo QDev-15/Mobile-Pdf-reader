@@ -17,18 +17,21 @@ public static class Dialogs
 	private static readonly Color Soft = Color.FromArgb("#5F5F5F");
 	private static readonly Color Line = Color.FromArgb("#D5D5D5");
 
-	private static System.Action? _dismiss;
+	// Keyed by page, not a single shared static: a dialog opening on one screen (e.g. a new file arriving while
+	// another page's dialog is open) must never reach in and dismiss a DIFFERENT page's dialog.
+	private static readonly Dictionary<Page, System.Action> _dismissals = new();
 
-	/// <summary>Closes the pop-up on screen, if any (as if cancelled). True when there was one.</summary>
-	public static bool TryDismiss()
+	/// <summary>Closes the pop-up on <paramref name="host"/>'s own screen, if any (as if cancelled). True when
+	/// there was one.</summary>
+	public static bool TryDismiss(this Page host)
 	{
-		System.Action? dismiss = _dismiss;
-		if (dismiss == null) return false;
+		ContentPage? page = Page(host);
+		if (page == null || !_dismissals.TryGetValue(page, out System.Action? dismiss)) return false;
 		dismiss();
 		return true;
 	}
 
-	public static bool IsOpen => _dismiss != null;
+	public static bool IsOpen(this Page host) => Page(host) is ContentPage page && _dismissals.ContainsKey(page);
 
 	// ------------------------------------------------------------------ public API
 
@@ -218,10 +221,9 @@ public static class Dialogs
 
 		void Close(T value)
 		{
-			if (_dismiss == null && !root.Children.Contains(layer)) return;
+			if (!_dismissals.Remove(page) && !root.Children.Contains(layer)) return;
 			HideKeyboard();
 			root.Remove(layer);
-			_dismiss = null;
 			tcs.TrySetResult(value);
 		}
 
@@ -231,8 +233,8 @@ public static class Dialogs
 		// as if cancelled, which lost the person's place in a flow without them asking to leave it.
 		layer.Add(card);
 
-		if (_dismiss != null) TryDismiss(); // never stack two
-		_dismiss = () => Close(cancelValue);
+		if (_dismissals.TryGetValue(page, out System.Action? existing)) existing(); // never stack two on the SAME page
+		_dismissals[page] = () => Close(cancelValue);
 		root.Add(layer);
 		return tcs.Task;
 	}

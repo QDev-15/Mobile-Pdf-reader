@@ -25,7 +25,11 @@ public sealed class TextLayerService : IDisposable
 	private PdfTextSource? _native;
 	private bool _nativeFailed;
 	private readonly ConcurrentDictionary<int, PageText> _cache = new();
-	private readonly Dictionary<int, List<TextWord>> _ocrStore;
+	// Written by the background OCR thread (RecognizeAsync) and read from the UI thread (GetAsync / HasOcr /
+	// OcrResults) at the same time -- e.g. selecting text on one page while another is still being recognised.
+	// ConcurrentDictionary instead of a lock: the existing read call sites (HasOcr, OcrResults) are simple
+	// lookups/snapshots with no need to hold a lock across other work.
+	private readonly ConcurrentDictionary<int, List<TextWord>> _ocrStore;
 	private readonly SemaphoreSlim _ocrGate = new(1, 1);
 
 	public TextLayerService(string pdfPath, PdfPages pages, OcrService ocr, string ocrCacheFile)
@@ -134,23 +138,26 @@ public sealed class TextLayerService : IDisposable
 		return (hits, skipped);
 	}
 
-	private Dictionary<int, List<TextWord>> LoadOcrStore()
+	private ConcurrentDictionary<int, List<TextWord>> LoadOcrStore()
 	{
 		try
 		{
 			if (File.Exists(_ocrCacheFile))
-				return JsonSerializer.Deserialize(File.ReadAllText(_ocrCacheFile), CoreJsonContext.Default.DictionaryInt32ListTextWord) ?? [];
+			{
+				Dictionary<int, List<TextWord>>? loaded = JsonSerializer.Deserialize(File.ReadAllText(_ocrCacheFile), CoreJsonContext.Default.DictionaryInt32ListTextWord);
+				if (loaded != null) return new ConcurrentDictionary<int, List<TextWord>>(loaded);
+			}
 		}
 		catch
 		{
 			// unreadable cache: start over
 		}
-		return [];
+		return new ConcurrentDictionary<int, List<TextWord>>();
 	}
 
 	private void SaveOcrStore()
 	{
-		try { File.WriteAllText(_ocrCacheFile, JsonSerializer.Serialize(_ocrStore, CoreJsonContext.Default.DictionaryInt32ListTextWord)); }
+		try { File.WriteAllText(_ocrCacheFile, JsonSerializer.Serialize(new Dictionary<int, List<TextWord>>(_ocrStore), CoreJsonContext.Default.DictionaryInt32ListTextWord)); }
 		catch (Exception ex) { Android.Util.Log.Warn("PdfReader", $"ocr cache save failed: {ex.Message}"); }
 	}
 

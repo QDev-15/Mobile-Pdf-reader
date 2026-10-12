@@ -1,12 +1,16 @@
 namespace PdfReader.Services;
 
 /// <summary>
-/// Single-slot handoff from MainActivity (Platforms/Android) to whichever MAUI page is on screen: a PDF
+/// Queued handoff from MainActivity (Platforms/Android) to whichever MAUI page is on screen: a PDF
 /// was just handed to the app via "Open with" / "Share" from another app.
+///
+/// A queue, not a single slot: two files opened back-to-back (e.g. picking a second one from the file
+/// manager before the app has finished processing the first "Open with" intent) must both be handled, not
+/// have the second silently overwrite the first before it is <see cref="Consume"/>d.
 ///
 /// Two setters, not one, because the two callers in MainActivity are NOT interchangeable:
 /// <see cref="Set"/> is for OnCreate (a brand-new Activity, so a brand-new AppShell is about to be built
-/// -- its own constructor reads <see cref="Uri"/> directly, synchronously, with nothing else in between,
+/// -- its own constructor reads <see cref="Peek"/> directly, synchronously, with nothing else in between,
 /// so no event is needed and firing one would be actively wrong). <see cref="SetAndNotify"/> is for
 /// OnNewIntent (LaunchMode.SingleTop: the app was already running, the existing AppShell is still the
 /// live one, so <see cref="Changed"/> is how it finds out).
@@ -22,28 +26,30 @@ namespace PdfReader.Services;
 /// </summary>
 public static class PendingPdfOpen
 {
-	public static string? Uri { get; private set; }
+	private static readonly Queue<string> Pending = new();
+
+	/// <summary>The next pending Uri, if any, without removing it -- for AppShell's constructor, which only
+	/// ever looks at whatever arrived at cold start (see the class comment).</summary>
+	public static string? Peek => Pending.Count > 0 ? Pending.Peek() : null;
 
 	public static event Action? Changed;
 
-	/// <summary>Cold start (MainActivity.OnCreate): stash the Uri only. The AppShell about to be
-	/// constructed picks it up by reading <see cref="Uri"/> directly -- see the class comment for why
-	/// this must NOT also raise <see cref="Changed"/>.</summary>
-	public static void Set(string uri) => Uri = uri;
+	/// <summary>Cold start (MainActivity.OnCreate): queue the Uri. The AppShell about to be constructed picks
+	/// it up by reading <see cref="Peek"/> directly -- see the class comment for why this must NOT also raise
+	/// <see cref="Changed"/>.</summary>
+	public static void Set(string uri) => Pending.Enqueue(uri);
 
-	/// <summary>Already running (MainActivity.OnNewIntent): the current AppShell's subscribed handler is
-	/// the only -- and definitely live -- listener, so tell it.</summary>
+	/// <summary>Already running (MainActivity.OnNewIntent): queue the Uri and tell the current AppShell's
+	/// subscribed handler -- the only, and definitely live, listener. Queued (not overwritten) so a second
+	/// file opened before the first is <see cref="Consume"/>d is not silently dropped.</summary>
 	public static void SetAndNotify(string uri)
 	{
-		Uri = uri;
+		Pending.Enqueue(uri);
 		Changed?.Invoke();
 	}
 
-	/// <summary>Returns the pending Uri (if any) and clears it, so it is only acted on once.</summary>
-	public static string? Consume()
-	{
-		string? uri = Uri;
-		Uri = null;
-		return uri;
-	}
+	/// <summary>Returns the oldest pending Uri (if any) and removes it, so it is only acted on once. A
+	/// listener that still finds more afterward (<see cref="Peek"/> non-null) should go round again instead of
+	/// assuming it drained everything.</summary>
+	public static string? Consume() => Pending.Count > 0 ? Pending.Dequeue() : null;
 }

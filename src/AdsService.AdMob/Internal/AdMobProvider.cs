@@ -75,6 +75,25 @@ internal sealed class AdMobProvider(AdMobOptions options, IInterstitialAdService
         consent.OnConsentFormDismissed += (_, _) => TryLoad();
     }
 
+    /// <summary>Pro bought mid-session: stop the banner refreshing, hide it; resume on false. (A Pro user at
+    /// startup never reaches here: the provider is never even created for them, see AdsClient.)</summary>
+    public void SetSuspended(bool suspended)
+    {
+        if (_shared is not { } view) return;
+        if (suspended)
+        {
+            view.Pause(); // AdView's own documented way to stop its refresh timer
+            view.Visibility = Android.Views.ViewStates.Gone;
+            SetLoaded(false);
+        }
+        else
+        {
+            view.Visibility = Android.Views.ViewStates.Visible;
+            view.Resume();
+            LoadWhenConsented(view);
+        }
+    }
+
     public bool IsInterstitialReady => interstitial.IsAdLoaded;
 
     public void PrepareInterstitial()

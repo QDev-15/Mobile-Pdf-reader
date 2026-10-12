@@ -16,12 +16,12 @@ public class MainActivity : MauiAppCompatActivity
 	protected override void OnCreate(Bundle? savedInstanceState)
 	{
 		// Must run before base.OnCreate: that call is what builds AppShell, and AppShell's
-		// constructor reads PendingPdfOpen.Uri to decide whether to skip the Dashboard. Resolving
-		// the intent afterward left the Uri unset at construction time, so a cold "Open with" launch
+		// constructor reads PendingPdfOpen.Peek to decide whether to skip the Dashboard. Resolving
+		// the intent afterward left it unset at construction time, so a cold "Open with" launch
 		// always showed the Dashboard first and only then jumped to the reader.
 		//
 		// notify: false -- the AppShell this OnCreate is about to build (inside base.OnCreate below)
-		// reads the Uri itself; nothing must react to it before that, see PendingPdfOpen's class comment.
+		// reads the pending Uri itself; nothing must react to it before that, see PendingPdfOpen's class comment.
 		ResolvePendingOpen(Intent, notify: false);
 		base.OnCreate(savedInstanceState);
 	}
@@ -32,8 +32,13 @@ public class MainActivity : MauiAppCompatActivity
 	{
 		base.OnNewIntent(intent);
 		Intent = intent;
-		// notify: true -- no new AppShell is being built here, so the existing (live) one must be told.
-		ResolvePendingOpen(intent, notify: true);
+		// IsFinishing: this exact instance is already tearing down (e.g. ReaderPage.LeaveAsync just called
+		// Finish() for a previous externally-opened file) -- Android can still deliver OnNewIntent to a
+		// dying instance in that narrow window instead of spinning up a fresh Activity. Notifying THIS
+		// instance's AppShell would be exactly the crash the OnCreate/OnNewIntent split above already exists
+		// to avoid, just reached a different way -- defer instead (notify: false), the same way OnCreate
+		// does for a cold start, so whichever Activity/AppShell is actually live picks it up.
+		ResolvePendingOpen(intent, notify: !IsFinishing);
 	}
 
 	/// <summary>Google's own recommended hook for in-app updates: re-checks every time the app comes

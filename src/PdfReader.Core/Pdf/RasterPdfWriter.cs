@@ -21,12 +21,27 @@ public static class RasterPdfWriter
 
 	public static void Write(string path, IEnumerable<RasterPage> pages)
 	{
-		using FileStream file = File.Create(path);
-		Write(file, pages);
+		FileStream file = File.Create(path);
+		try
+		{
+			using (file) Write(file, pages);
+		}
+		catch
+		{
+			// Validated (at least 1 page) below before anything else is written, but if some later step
+			// still throws (a bad bitmap, a full disk...) a broken .pdf must not be left behind either.
+			try { File.Delete(path); } catch { /* best effort */ }
+			throw;
+		}
 	}
 
 	public static void Write(Stream output, IEnumerable<RasterPage> pages)
 	{
+		// Checked before a single byte is written -- the header used to go out first and the page count
+		// only after, so a 0-page document left a broken, header-only .pdf file behind.
+		using IEnumerator<RasterPage> it = pages.GetEnumerator();
+		if (!it.MoveNext()) throw new ArgumentException("Cần ít nhất 1 trang.", nameof(pages));
+
 		var offsets = new SortedDictionary<int, long>();
 		long position = 0;
 
@@ -48,8 +63,9 @@ public static class RasterPdfWriter
 		// used by any hidden text) is only complete at the end, so the font object is written last.
 		var chars = new Dictionary<char, int>(); // char -> CID (1-based)
 		int count = 0;
-		foreach (RasterPage page in pages)
+		do
 		{
+			RasterPage page = it.Current;
 			int pageId = FirstPageObject + count * 3, contentId = pageId + 1, imageId = pageId + 2;
 
 			string hidden = page.Text is { Count: > 0 } words ? BuildHiddenText(words, page.WidthPt, page.HeightPt, chars) : "";
@@ -72,8 +88,7 @@ public static class RasterPdfWriter
 			Text("\nendstream\nendobj\n");
 
 			count++;
-		}
-		if (count == 0) throw new ArgumentException("Cần ít nhất 1 trang.", nameof(pages));
+		} while (it.MoveNext());
 
 		Begin(1);
 		Text("<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");

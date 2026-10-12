@@ -35,7 +35,17 @@ public sealed class AndroidDownloadsService : IDownloadsService
 			{
 				using (Stream output = resolver.OpenOutputStream(uri) ?? throw new IOException("Không ghi được file."))
 				using (FileStream input = File.OpenRead(sourcePath))
-					input.CopyTo(output);
+				{
+					// Checked every chunk, not just once the whole copy is done -- cancelling mid-way must stop
+					// the copy there instead of writing the rest of the file first for nothing.
+					byte[] buffer = new byte[81920];
+					int read;
+					while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+					{
+						ct.ThrowIfCancellationRequested();
+						output.Write(buffer, 0, read);
+					}
+				}
 				ct.ThrowIfCancellationRequested();
 
 				var done = new ContentValues();

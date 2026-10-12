@@ -71,6 +71,8 @@ public static class AnnotationPainter
 		DrawStroke(canvas, points.Select(p => (page.Left + p.X * page.Width(), page.Top + p.Y * page.Height())).ToList(),
 			widthFraction * page.Width(), ColorOf(color), highlighter);
 
+	private static readonly Android.Graphics.Color RedactBlack = new(unchecked((int)0xFF000000));
+
 	private static void DrawMarkup(Canvas canvas, MarkupAnnotation m, RectF page)
 	{
 		using var paint = new Paint(PaintFlags.AntiAlias) { Color = ColorOf(m.Color) };
@@ -79,8 +81,15 @@ public static class AnnotationPainter
 			RectF r = ToRect(nr, page);
 			switch (m.Kind)
 			{
-				case MarkupKind.Highlight:
 				case MarkupKind.Redact:
+					// Never trust the stored Color for a redaction: malformed/mismigrated annotation data must
+					// still hide the text underneath with solid opaque black, not whatever colour (or alpha) ended
+					// up on the record.
+					paint.Color = RedactBlack;
+					paint.SetStyle(Paint.Style.Fill);
+					canvas.DrawRect(r, paint);
+					break;
+				case MarkupKind.Highlight:
 					paint.SetStyle(Paint.Style.Fill);
 					canvas.DrawRect(r, paint);
 					break;

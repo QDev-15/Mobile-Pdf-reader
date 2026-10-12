@@ -21,7 +21,15 @@ public sealed class PdfPages : IDisposable
 	private PdfPages(ParcelFileDescriptor file)
 	{
 		_file = file;
-		_renderer = new PdfRenderer(file);
+		try { _renderer = new PdfRenderer(file); }
+		catch
+		{
+			// PdfRenderer throws for a password-protected PDF (the normal way callers detect one, see
+			// PdfOpener.ProbeAsync) -- without this, the fd this constructor already opened would never get
+			// closed: the exception leaves PdfPages itself never constructed, so nothing can call Dispose().
+			file.Close();
+			throw;
+		}
 	}
 
 	/// <summary>Opens a PDF from a content:// Uri string (the normal case -- a file handed in via "Open

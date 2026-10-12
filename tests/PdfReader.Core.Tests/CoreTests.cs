@@ -59,6 +59,17 @@ public class TextTests
 	}
 
 	[Fact]
+	public void HitTest_corrects_distance_for_page_aspect()
+	{
+		// Box is (0.1,0.1)-(0.2,0.12); the same vertical gap below it (0.03) reads as a hit on a square page
+		// but a miss on a page twice as tall, once that distance is corrected into page-width units the same
+		// way every annotation hit-test already does.
+		PageText p = Page(("hello", 0.1f, 0.1f));
+		Assert.Equal(0, p.HitTest(0.15f, 0.15f, pageAspect: 1f, tolerance: 0.05f));
+		Assert.Equal(-1, p.HitTest(0.15f, 0.15f, pageAspect: 2f, tolerance: 0.05f));
+	}
+
+	[Fact]
 	public void Search_ignores_accents_and_case_and_spans_words()
 	{
 		PageText p = Page(("Tài", 0.1f, 0.1f), ("liệu", 0.3f, 0.1f), ("Đà", 0.5f, 0.1f), ("Nẵng", 0.7f, 0.1f));

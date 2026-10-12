@@ -44,7 +44,13 @@ public sealed class LaunchPage : ContentPage
 
 		string? uri = PendingPdfOpen.Consume();
 		bool opened = uri != null && await _opener.OpenAsync(uri, external: true);
-		if (!opened) await UiHost.Shell.GoToAsync("//DashboardPage");
+		if (!opened)
+		{
+			// Nothing is showing through the Launch tab any more -- safe to drop it and go back to Dashboard
+			// as the Shell's only tab again, instead of leaving Launch behind for the rest of this Activity.
+			(UiHost.ShellOrNull as AppShell)?.RestoreDashboard();
+			await UiHost.Shell.GoToAsync("//DashboardPage");
+		}
 	}
 
 	protected override bool OnBackButtonPressed()

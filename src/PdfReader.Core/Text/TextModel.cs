@@ -61,8 +61,11 @@ public sealed class PageText
 	public string FullText => Join(0, Words.Count - 1);
 
 	/// <summary>Index of the word under (x, y), or the nearest word within <paramref name="tolerance"/>
-	/// (a fraction of the page), or -1.</summary>
-	public int HitTest(float x, float y, float tolerance = 0.02f)
+	/// (a fraction of the page width), or -1. <paramref name="pageAspect"/> (page height / page width) corrects
+	/// the vertical distance into the same page-width units as the horizontal one, the same way every
+	/// annotation hit-test (<see cref="PdfReader.Core.Annotations.Annotation.HitTest"/>) already does -- without
+	/// it, the hit area is skewed on a non-square page.</summary>
+	public int HitTest(float x, float y, float pageAspect = 1f, float tolerance = 0.02f)
 	{
 		int best = -1;
 		float bestDist = float.MaxValue;
@@ -70,7 +73,7 @@ public sealed class PageText
 		{
 			NRect b = Words[i].Box;
 			float dx = x < b.Left ? b.Left - x : x > b.Right ? x - b.Right : 0;
-			float dy = y < b.Top ? b.Top - y : y > b.Bottom ? y - b.Bottom : 0;
+			float dy = (y < b.Top ? b.Top - y : y > b.Bottom ? y - b.Bottom : 0) * pageAspect;
 			float d = MathF.Sqrt(dx * dx + dy * dy);
 			if (d <= tolerance && d < bestDist)
 			{

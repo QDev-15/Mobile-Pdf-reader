@@ -126,7 +126,7 @@ public partial class PageManagerPage : ContentPage
 		_thumbCts?.Cancel();
 	}
 
-	protected override bool OnBackButtonPressed() => Dialogs.TryDismiss() || base.OnBackButtonPressed();
+	protected override bool OnBackButtonPressed() => this.TryDismiss() || base.OnBackButtonPressed();
 
 	private void Renumber()
 	{

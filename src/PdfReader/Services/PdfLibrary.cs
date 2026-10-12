@@ -22,6 +22,12 @@ public sealed class PdfLibrary
 		_dataDir = Path.Combine(appDataDirectory, "docdata");
 		Directory.CreateDirectory(_pdfDir);
 		Directory.CreateDirectory(_dataDir);
+
+		// Scratch files from a previous run (crashed mid-export, a flow cancelled after producing one, ...)
+		// are never useful -- every operation starts a fresh one via NewWorkFile -- so they just accumulate
+		// otherwise. Wiped once per app start rather than chased after each operation.
+		try { if (Directory.Exists(WorkDirectory)) Directory.Delete(WorkDirectory, recursive: true); }
+		catch { /* best effort */ }
 	}
 
 	public string WorkDirectory { get; } = Path.Combine(Path.GetTempPath(), "pdfreader-work");

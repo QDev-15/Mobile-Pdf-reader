@@ -1,6 +1,7 @@
 using Com.Applovin.Mediation;
 using Com.Applovin.Mediation.Ads;
 using Com.Applovin.Sdk;
+using Microsoft.Maui.ApplicationModel;
 using View = Android.Views.View;
 using ViewGroup = Android.Views.ViewGroup;
 
@@ -21,6 +22,14 @@ internal sealed class AppLovinProvider(AppLovinOptions options) : IAdProvider
 {
     private MaxAdView? _shared;
     private MaxInterstitialAd? _interstitial;
+
+    // Initialize() is async: calling LoadAd() before the SDK finishes initialising is rejected/undefined, the
+    // same constraint UnityLevelPlayProvider documents for LevelPlay -- so every LoadAd() call goes through
+    // RunAfterInit instead of being issued directly.
+    private readonly Lock _lock = new();
+    private bool _initDone;
+    private readonly List<Action> _pendingActions = [];
+    private bool _suspended; // set by SetSuspended: the app turned ads off mid-session (e.g. a Pro purchase)
 
     public bool IsBannerLoaded { get; private set; }
 
@@ -50,16 +59,66 @@ internal sealed class AppLovinProvider(AppLovinOptions options) : IAdProvider
             return existing;
         }
 
-        _shared = new MaxAdView(options.BannerAdUnitId, MaxAdFormat.Banner!);
-        _shared.SetListener(new BannerListener(this));
-        _shared.LoadAd();
-        return _shared;
+        var view = new MaxAdView(options.BannerAdUnitId, MaxAdFormat.Banner!);
+        view.SetListener(new BannerListener(this));
+        _shared = view;
+        RunAfterInit(() => { if (!_suspended) view.LoadAd(); });
+        return view;
+    }
+
+    /// <summary>Pro bought mid-session: stop the banner refreshing and retrying, hide it; resume on false. (A Pro user at
+    /// startup never reaches here: the provider is never even created for them, see AdsClient.)</summary>
+    public void SetSuspended(bool suspended)
+    {
+        _suspended = suspended;
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            if (_shared is not { } view) return;
+            if (suspended)
+            {
+                view.StopAutoRefresh();
+                view.Visibility = Android.Views.ViewStates.Gone;
+                SetBannerLoaded(false);
+            }
+            else
+            {
+                view.Visibility = Android.Views.ViewStates.Visible;
+                view.StartAutoRefresh();
+                RunAfterInit(view.LoadAd);
+            }
+        });
     }
 
     public void PrepareInterstitial()
     {
-        _interstitial ??= CreateInterstitial();
-        _interstitial.LoadAd();
+        MaxInterstitialAd ad = _interstitial ??= CreateInterstitial();
+        RunAfterInit(ad.LoadAd);
+    }
+
+    private void RunAfterInit(Action action)
+    {
+        lock (_lock)
+        {
+            if (!_initDone) { _pendingActions.Add(action); return; }
+        }
+        action();
+    }
+
+    private void OnInitFinished()
+    {
+        List<Action> pending;
+        lock (_lock)
+        {
+            _initDone = true;
+            pending = [.. _pendingActions];
+            _pendingActions.Clear();
+        }
+        // The queued actions touch Views (LoadAd can trigger layout): MainThread.BeginInvokeOnMainThread is a
+        // cheap no-op if this callback already arrived on the UI thread, and the safety net if it ever does not.
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            foreach (Action action in pending) action();
+        });
     }
 
     public void ShowInterstitialIfReady()
@@ -84,11 +143,7 @@ internal sealed class AppLovinProvider(AppLovinOptions options) : IAdProvider
     private sealed class InitListener(AppLovinProvider owner, Android.Content.Context context)
         : Java.Lang.Object, AppLovinSdk.ISdkInitializationListener
     {
-        public void OnSdkInitialized(IAppLovinSdkConfiguration? configuration)
-        {
-            // Preload is implicit: the first CreateBannerView / PrepareInterstitial call after this point
-            // creates+loads normally; nothing to kick off here beyond having initialized the SDK.
-        }
+        public void OnSdkInitialized(IAppLovinSdkConfiguration? configuration) => owner.OnInitFinished();
     }
 
     /// <summary>MaxAdListener's callbacks (shared by banner and interstitial) -- only onAdLoaded/onAdLoadFailed

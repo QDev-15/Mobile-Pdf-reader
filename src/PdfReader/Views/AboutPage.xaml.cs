@@ -21,7 +21,7 @@ public partial class AboutPage : ContentPage
 		Banner.Reattach();
 	}
 
-	protected override bool OnBackButtonPressed() => Dialogs.TryDismiss() || base.OnBackButtonPressed();
+	protected override bool OnBackButtonPressed() => this.TryDismiss() || base.OnBackButtonPressed();
 
 	private async void OnEmail(object? sender, TappedEventArgs e)
 	{

@@ -51,7 +51,7 @@ public partial class DashboardPage : ContentPage
 	/// second press within two seconds, so one stray tap cannot throw the person out.</summary>
 	protected override bool OnBackButtonPressed()
 	{
-		if (Dialogs.TryDismiss()) return true;
+		if (this.TryDismiss()) return true;
 		if (SearchRow.IsVisible)
 		{
 			CloseSearch();

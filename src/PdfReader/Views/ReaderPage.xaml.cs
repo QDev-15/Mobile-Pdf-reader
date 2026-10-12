@@ -60,6 +60,7 @@ public partial class ReaderPage : ContentPage
 	private CancellationTokenSource? _searchCts;
 	private int _busyJobToken; // 0 = no RunJobAsync in flight; otherwise which call owns the busy pill right now
 	private bool _closing;
+	private bool _cleanupDeferred; // Cleanup() was asked for while a job still owned _session/_engine; retried from RunJobAsync's finally
 
 	public string? Uri { get; set; }
 	public string? DisplayName { get; set; }
@@ -129,6 +130,11 @@ public partial class ReaderPage : ContentPage
 	/// the whole app is closed from an external open, so closing calls it explicitly too).</summary>
 	private void Cleanup()
 	{
+		// A RunJobAsync call (export / compress / OCR...) still owns the session right now -- the same check
+		// OnEngineBusy makes. Disposing out from under it here would crash or truncate the file it is writing;
+		// defer and let that job's own finally call Cleanup() again once it is done.
+		if (_busyJobToken != 0) { _cleanupDeferred = true; return; }
+		_cleanupDeferred = false;
 		SaveProgressNow();
 		_searchCts?.Cancel();
 		if (_engine != null)
@@ -163,7 +169,7 @@ public partial class ReaderPage : ContentPage
 
 	protected override bool OnBackButtonPressed()
 	{
-		if (Dialogs.TryDismiss()) return true;
+		if (this.TryDismiss()) return true;
 		if (SignaturePadOverlay.IsVisible) { HidePad(); return true; }
 		if (OutlineOverlay.IsVisible) { OutlineOverlay.IsVisible = false; return true; }
 		if (SearchRow.IsVisible) { CloseSearch(); return true; }
@@ -297,6 +303,7 @@ public partial class ReaderPage : ContentPage
 			{
 				_busyJobToken = 0;
 				HideBusy();
+				if (_cleanupDeferred) Cleanup();
 			}
 		}
 	}
@@ -1236,8 +1243,6 @@ public partial class ReaderPage : ContentPage
 		if (!go) return;
 		PdfQuality? quality = await AskQualityAsync();
 		if (quality == null) return;
-		string? fileName = await this.NamePdfAsync($"{BaseName}_ocr");
-		if (fileName == null) return;
 
 		string? file = null;
 		bool ok = await RunJobAsync("Nhận dạng chữ…", async p => file = await _exporter.MakeSearchableAsync(_session, quality, p));
@@ -1247,6 +1252,11 @@ public partial class ReaderPage : ContentPage
 			await this.AlertAsync("PDF tìm kiếm được", "Mọi trang đã có chữ, hoặc không nhận dạng được chữ nào — không cần tạo bản mới.", "Đóng");
 			return;
 		}
+
+		// Only ask for a name once OCR actually determined it is about to produce a new file -- asking up
+		// front (before knowing that) meant a name prompt for a PDF that then turned out to need no changes.
+		string? fileName = await this.NamePdfAsync($"{BaseName}_ocr");
+		if (fileName == null) return;
 		await _results.DeliverPdfAsync(file, fileName);
 	}
 
