@@ -24,6 +24,17 @@
 	<uses-permission android:name="android.permission.INTERNET" />
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+	<!-- Required since Android 13 (API 33): without it the system zeroes out the Advertising ID for
+	     every app on the device, regardless of which ad SDK reads it. Play Console's own upload check
+	     (2026-10-12: "Errors, warnings and messages" on a closed-testing release) rejects an upload
+	     whose manifest lacks this permission when the app's own Play Console "Advertising ID" declaration
+	     (App content) says the app uses it, true here: LevelPlay (the active ad provider) uses it for ad
+	     targeting/attribution. Previously came along for free via Plugin.AdMob's own transitively-bundled
+	     play-services-ads-identifier; removed along with AdMob itself in the 2026-10-12 AdsService provider
+	     split (dexdump-confirmed: zero com.google.android.gms.ads.* / AdvertisingIdClient classes remain in
+	     the DEX), so it must be declared explicitly now. -->
+	<uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
 	<!-- MainActivity's own [IntentFilter] attributes (Platforms/Android/MainActivity.cs) declare it as a
 	     target for ACTION_VIEW / ACTION_SEND of application/pdf, which is how it shows up in a file
 	     manager's "Open with" / "Share" sheet (plan section 8 item 1: Android decides whether to also
