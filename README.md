@@ -41,6 +41,42 @@ dotnet test tests/PdfReader.Core.Tests
 Debug dùng JIT nên chậm hơn máy thật thấy rõ — xem trực tiếp trên thiết bị, đừng kết luận "app chậm" từ Debug build.
 Hướng dẫn ký bản Release: [KEYSTORE-README.md](KEYSTORE-README.md).
 
+## Build Release: có ads / không ads
+
+Hai công tắc (MSBuild property) điều khiển quảng cáo, độc lập với Debug/Release:
+
+| Flag | Giá trị | Ý nghĩa |
+|---|---|---|
+| `AdsMode` | `Dev` (mặc định) | Luôn hiện **quảng cáo test/sandbox** — an toàn bấm thử, không bao giờ bị Google tính "invalid click" |
+| | `Pro` | Hiện **quảng cáo thật** — chỉ dùng cho bản nộp Play Store chính thức |
+| `AdsEnabled` | `true` (mặc định) | Có quảng cáo (test hoặc thật tùy `AdsMode`) |
+| | `false` | **Tắt hẳn** — SDK quảng cáo không khởi tạo, không có banner/interstitial nào cả |
+
+Chạy từ thư mục gốc repo:
+
+```
+# 1. Bản nộp Play Store thật (có ads thật)
+dotnet publish src/PdfReader -f net10.0-android -c Release -p:AdsMode=Pro
+
+# 2. Bản release KHÔNG có ads (demo, build cho đối tác... vẫn ký bằng keystore thật)
+dotnet publish src/PdfReader -f net10.0-android -c Release -p:AdsEnabled=false
+
+# 3. Bản release cho track Test của Play Console (ads sandbox, an toàn cho tester bấm thử — mặc định nếu không truyền gì)
+dotnet publish src/PdfReader -f net10.0-android -c Release
+```
+
+File kết quả (luôn lấy file có hậu tố `-Signed`, đã ký bằng keystore thật):
+```
+src/PdfReader/bin/Release/net10.0-android/publish/com.tonyq.pdfreader-Signed.aab
+```
+
+**Trước mỗi lần build để nộp Play**: tăng `<ApplicationVersion>` trong `PdfReader.csproj` lên 1 so với lần trước —
+Play Console không bao giờ cho dùng lại một versionCode đã từng upload, kể cả khi bản nháp đó đã bị huỷ.
+
+Việc ký bằng keystore thật là tự động mỗi khi build `-c Release`, nhờ `src/PdfReader/release/Signing.props` (đã
+có sẵn, bị gitignore — đừng xoá/di chuyển file này và `pdfreader-upload.keystore` cùng thư mục). Thiếu 2 file này,
+Release build vẫn chạy được nhưng tự rơi về ký bằng debug key — bản đó Play Console sẽ từ chối khi upload.
+
 ## Trạng thái
 
 **M0–M3 và phần lớn M5 đã viết xong và build được; chưa chạy thử trên thiết bị/emulator thật** (máy dev không có
@@ -69,10 +105,9 @@ Chưa có:
 
 ## TODO trước khi build Release / lên Play (việc phải làm thủ công)
 
-- [ ] Tạo AdMob app + 2 ad unit ID thật, điền vào `AdsConfig.cs` (ad unit) và `PdfReaderRealAdMobAppId` trong `PdfReader.csproj` (App ID). Hai ID này **chỉ có hiệu lực khi build với `-p:AdsMode=Pro`** — mặc định (không truyền cờ, dù Debug hay Release, dù APK hay AAB) luôn dùng ID test của Google, kể cả khi đã upload lên Play testing track. Build bản thật để lên Play:
-  ```
-  dotnet publish src/PdfReader -f net10.0-android -c Release -p:AndroidPackageFormat=aab -p:AdsMode=Pro
-  ```
+- [x] Chuyển sang Unity LevelPlay làm nhà quảng cáo chính (AdMob/AppLovin vẫn còn trong `src/AdsService.AdMob`,
+  `src/AdsService.AppLovin` nếu cần chuyển lại sau này — xem comment trong `MauiProgram.cs`). ID thật nằm trong
+  `RealAdsConfig.cs`, chỉ có hiệu lực khi build với `-p:AdsMode=Pro` — xem mục "Build Release: có ads / không ads" ở trên.
 - [ ] Tạo product ID Pro thật trên Play Console, điền vào `LicenseService.ProProductId`
 - [ ] Tạo keystore ký app riêng — xem [KEYSTORE-README.md](KEYSTORE-README.md)
 - [ ] Test tay trên thiết bị thật: zoom/pan, chọn chữ, OCR tiếng Việt, vẽ/chữ ký, export, mật khẩu, PDF lớn

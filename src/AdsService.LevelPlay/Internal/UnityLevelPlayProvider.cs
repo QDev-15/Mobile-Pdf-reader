@@ -91,6 +91,7 @@ internal sealed class UnityLevelPlayProvider(LevelPlayOptions options) : IAdProv
                 Gravity = GravityFlags.CenterHorizontal,
             });
             if (!_suspended) view.LoadAd();
+            StartBannerWatchdog();
         });
         return container;
     }
@@ -205,6 +206,33 @@ internal sealed class UnityLevelPlayProvider(LevelPlayOptions options) : IAdProv
         if (IsBannerLoaded == loaded) return;
         IsBannerLoaded = loaded;
         BannerStateChanged?.Invoke();
+    }
+
+    // Recurring safety net, independent of OnAdLoadFailed above: LevelPlay auto-refreshes a loaded banner every
+    // ~15s, but if a LoadAd() call goes out and NEITHER OnAdLoaded NOR OnAdLoadFailed ever fires back (a
+    // genuinely silent stuck load, not merely a reported failure) nothing currently notices or retries -- the
+    // same class of "no bound on how long we wait" gap found and fixed elsewhere in this app 2026-10-13. Started
+    // once, right after the first LoadAd(); runs for the provider's whole lifetime and simply no-ops on each
+    // tick while a creative is already showing or ads are suspended.
+    private CancellationTokenSource? _watchdogCts;
+
+    private void StartBannerWatchdog()
+    {
+        if (_watchdogCts != null) return; // already running; CreateBannerView only ever calls this once per provider
+        var cts = _watchdogCts = new CancellationTokenSource();
+        _ = BannerWatchdogLoopAsync(cts.Token);
+    }
+
+    private async Task BannerWatchdogLoopAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try { await Task.Delay(TimeSpan.FromSeconds(20), ct); }
+            catch (OperationCanceledException) { return; }
+            if (ct.IsCancellationRequested || _suspended || IsBannerLoaded) continue;
+            AdLog("banner watchdog: no ad after the usual refresh window, forcing a reload");
+            MainThread.BeginInvokeOnMainThread(() => { if (!_suspended && !IsBannerLoaded) _shared?.LoadAd(); });
+        }
     }
 
     private sealed class InitListener(UnityLevelPlayProvider owner) : Java.Lang.Object, ILevelPlayInitListener

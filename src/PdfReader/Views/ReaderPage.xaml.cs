@@ -99,10 +99,26 @@ public partial class ReaderPage : ContentPage
 		TitleLabel.Text = DisplayName ?? "PDF";
 		try
 		{
-			RecentPdfRecord? record = await _store.GetAsync(Uri);
+			// Hard rule (same as PdfOpener.OpenAsync): no spinner waits more than 1 minute. This page used to
+			// be the one place in the app that broke that rule -- opening a PDF here awaited the store lookup
+			// and PdfSession.Open with no timeout at all, so a stuck native call left the page permanently
+			// blank with no error and no way out short of force-closing the app (found 2026-10-13, a real
+			// report of "mở pdf cứ quay quay không mở được").
+			(bool gotRecord, RecentPdfRecord? record) = await _store.GetAsync(Uri).WaitOrTimeoutAsync();
+			if (!gotRecord) throw new TimeoutException("Mở file mất hơn 1 phút nên đã dừng chờ. Hãy thử lại.");
+
 			string path = Uri, name = DisplayName ?? "PDF";
-			_session = await Task.Run(() => PdfSession.Open(path, name, _library, _ocr));
-			_session.Annotations.Changed += RefreshToolButtons;
+			Task<PdfSession> openTask = Task.Run(() => PdfSession.Open(path, name, _library, _ocr));
+			(bool opened, PdfSession? session) = await openTask.WaitOrTimeoutAsync();
+			if (!opened)
+			{
+				// WaitOrTimeoutAsync leaves the task running; if it eventually succeeds after we have already
+				// given up and left, dispose the orphaned session instead of leaking its native PdfRenderer/fd.
+				_ = openTask.ContinueWith(t => { if (t.IsCompletedSuccessfully) t.Result.Dispose(); }, TaskScheduler.Default);
+				throw new TimeoutException("Mở file mất hơn 1 phút nên đã dừng chờ. Hãy thử lại.");
+			}
+			_session = session;
+			_session!.Annotations.Changed += RefreshToolButtons;
 
 			// The native view exists once the page is on screen; give the handler a moment if it is not yet.
 			for (int i = 0; i < 20 && Viewer.Engine == null; i++) await Task.Delay(50);
