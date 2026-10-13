@@ -57,6 +57,8 @@
 		     that meta-data for why), so it is now just Google's published TEST App ID, hardcoded directly in
 		     the manifest, unconditionally. The real production ad unit ids (for whichever provider is
 		     active, LevelPlay right now) live in RealAdsConfig.cs, which is unrelated to this. -->
+		<AndroidGenerateDebugSymbols>true</AndroidGenerateDebugSymbols>
+		<AndroidSymbolStoreType>SymbolStore</AndroidSymbolStoreType>
 	</PropertyGroup>
 
 	<!-- Same Release/Debug performance tuning as DocScanner (plan section 2): LLVM AOT in Release,
