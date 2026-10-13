@@ -25,7 +25,7 @@
 
 		<!-- Versions. Bump ApplicationVersion (Android versionCode) on every build going to a device or to Play. -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-		<ApplicationVersion>5</ApplicationVersion>
+		<ApplicationVersion>6</ApplicationVersion>
 
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">26.0</SupportedOSPlatformVersion>
 
@@ -108,6 +108,26 @@
 	     plan section 7 "Không tái dùng - viết mới". Not set up yet; a Release build without it falls
 	     back to the debug key (fine for local testing only, never upload that AAB to Play). -->
 	<Import Project="release\Signing.props" Condition="'$(Configuration)' == 'Release' AND Exists('release\Signing.props')" />
+
+	<!-- dotnet publish's own output already lands the signed bundle in bin\Release\net10.0-android\publish\,
+	     named "<ApplicationId>-Signed.aab"; easy to lose track of across several builds (Dev/Pro ads, with/
+	     without ads, different days) since every one overwrites the same generic name in a folder buried under
+	     bin\. Also copies it to release\ (the same gitignored folder Signing.props + the upload keystore already
+	     live in, see .gitignore's "[Rr]elease/" rule, so this can never end up committed) with the app's own
+	     display version + version code baked into the file name, so old builds just sit there named for what
+	     they are instead of being overwritten. Does not delete/replace dotnet publish's own copy, only adds this
+	     one; only fires for a Release .aab build (Signing.props is what actually sets AndroidPackageFormat=aab). -->
+	<Target Name="CopyReleaseAabWithVersion" AfterTargets="Publish"
+	        Condition="'$(Configuration)' == 'Release' AND '$(AndroidPackageFormat)' == 'aab'">
+		<ItemGroup>
+			<_SignedAab Include="$(PublishDir)*-Signed.aab" />
+		</ItemGroup>
+		<PropertyGroup>
+			<_ReleaseAabName>PdfReader-$(ApplicationDisplayVersion)-$(ApplicationVersion).aab</_ReleaseAabName>
+		</PropertyGroup>
+		<Copy SourceFiles="@(_SignedAab)" DestinationFiles="release\$(_ReleaseAabName)" Condition="'@(_SignedAab)' != ''" />
+		<Message Importance="high" Condition="'@(_SignedAab)' != ''" Text="Release AAB also copied to release\$(_ReleaseAabName)" />
+	</Target>
 
 	<ItemGroup>
 		<!-- App Icon -->
