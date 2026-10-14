@@ -55,9 +55,37 @@ internal sealed class UnityLevelPlayProvider(LevelPlayOptions options) : IAdProv
     public UnityLevelPlayProvider Initialize(Android.Content.Context context)
     {
         if (options.TestMode) global::Com.Unity3d.Mediation.LevelPlay.SetAdaptersDebug(true);
-        LevelPlayInitRequest request = new LevelPlayInitRequest.Builder(options.AppKey)!.Build()!;
-        global::Com.Unity3d.Mediation.LevelPlay.Init(context, request, new InitListener(this));
+        _context = context;
+        StartInit();
         return this;
+    }
+
+    private Android.Content.Context? _context;
+    private int _initAttempt;
+
+    // Init() itself can go silent -- neither OnInitSuccess nor OnInitFailed ever firing (observed on the sibling
+    // DocScanner app 2026-10-13 after many rapid relaunches in a short test session: no callback for 45+ seconds,
+    // everything downstream -- banner, interstitial -- stayed queued in RunAfterInit forever). Unity's own sample
+    // code comments "recommended to initialize again" inside OnInitFailed, but that only helps when the SDK
+    // actually calls it; a true hang needs its own watchdog. Same capped-exponential-backoff shape as
+    // ScheduleBannerRetry below, for the same reason (do not hammer a struggling backend), just a shorter base
+    // delay since init is expected to resolve faster than a banner refresh. Ported from DocScanner's own fix,
+    // same file, same day.
+    private void StartInit()
+    {
+        int attempt = Interlocked.Increment(ref _initAttempt);
+        AdLog($"init attempt #{attempt}");
+        LevelPlayInitRequest request = new LevelPlayInitRequest.Builder(options.AppKey)!.Build()!;
+        global::Com.Unity3d.Mediation.LevelPlay.Init(_context!, request, new InitListener(this));
+        TimeSpan timeout = TimeSpan.FromSeconds(Math.Min(300, 15 * Math.Pow(2, attempt - 1)));
+        _ = Task.Delay(timeout).ContinueWith(_ =>
+        {
+            // _initDone, or a newer attempt already in flight (a real OnInitFailed retried before this timeout
+            // fired): this stale watchdog has nothing to do.
+            if (_initDone || attempt != _initAttempt) return;
+            AdLog($"init attempt #{attempt}: no callback within {timeout.TotalSeconds:0}s, retrying");
+            MainThread.BeginInvokeOnMainThread(StartInit);
+        });
     }
 
     public View CreateBannerView(Android.Content.Context context)
@@ -240,7 +268,7 @@ internal sealed class UnityLevelPlayProvider(LevelPlayOptions options) : IAdProv
         // Either outcome unblocks queued LoadAd() calls: a genuine init failure should surface as a normal
         // ad-load failure through the banner/interstitial listeners, not as a silent, permanently-stuck queue.
         public void OnInitSuccess(LevelPlayConfiguration? configuration) { AdLog("init success"); owner.OnInitFinished(); }
-        public void OnInitFailed(LevelPlayInitError? error) { AdLog($"init FAILED: {error}"); owner.OnInitFinished(); }
+        public void OnInitFailed(LevelPlayInitError? error) { AdLog($"init FAILED: {error}, retrying"); MainThread.BeginInvokeOnMainThread(owner.StartInit); }
     }
 
     private sealed class BannerListener(UnityLevelPlayProvider owner) : Java.Lang.Object, ILevelPlayBannerAdViewListener
