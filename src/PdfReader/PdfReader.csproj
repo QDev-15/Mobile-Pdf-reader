@@ -101,6 +101,22 @@
 		     a few remaining reflection paths). Needs an actual on-device smoke test of every feature
 		     (export, OCR, ads, Play Billing, Play Core update) before shipping, not just "it still builds". -->
 		<AndroidLinkMode>Full</AndroidLinkMode>
+
+		<!-- Tried and REVERTED (2026-10-14): Xamarin.Google.Crypto.Tink.Android measures ~18% of this app's DEX
+		     (apkanalyzer dex packages) purely because it's a HARD PackageReference dependency of Microsoft.Maui.Essentials
+		     itself (confirmed in obj/project.assets.json), to back the SecureStorage API: PdfReader never calls
+		     SecureStorage anywhere (grep, whole repo). Tried a custom ILLink.Substitutions.xml (via a "substitutions" flag in
+		     _ExtraTrimmerArgs) converting SecureStorage.get_Default()'s body to a throw, confirmed via Mono.Cecil to be the
+		     ONLY construction site of SecureStorageImplementation in the whole assembly. It worked perfectly on the C# side
+		     (SecureStorage/SecureStorageImplementation and even Tink's own binding DLL fully gone from obj/.../linked/), but
+		     dex size did not move at all (measured identical before/after on a from-clean rebuild, after first chasing a false
+		     positive caused by incremental build cache left over from two earlier failed attempts: always `rm -rf obj bin`
+		     before trusting a dex measurement that follows a build that failed partway). Root cause: the generated
+		     proguard_project_references.cfg still had 2436 Tink-related -keep rules with zero remaining C# references to
+		     justify them, meaning .NET for Android's Java-binding keep-rule generation works at a coarser unit than per-type
+		     C# reachability (closer to "this package is resolved at all" than "this type survived trimming") for a
+		     dependency baked hard into a NuGet package rather than chosen via this project's own PackageReference list. No
+		     known fix from this app's side; would need an upstream change in Microsoft.Maui.Essentials or its SDK tooling. -->
 	</PropertyGroup>
 
 	<!-- Release signing (Google Play upload key): keystore + passwords are NOT in this file. A new,
