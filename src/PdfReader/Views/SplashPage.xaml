@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="PdfReader.Views.SplashPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Shell.NavBarIsVisible="False"
+    BackgroundColor="{StaticResource MilkBackground}">
+
+    <Grid RowDefinitions="*,Auto,*,Auto">
+        <Grid.Background>
+            <!-- Starts at the exact same color as the native system splash (MauiSplashScreen's Color, see
+                 PdfReader.csproj) so the handover from system splash to this page has no visible color jump;
+                 only a very subtle warm gradient beyond that, not DocScanner's bold saturated color, since
+                 PdfReader's own palette is red-on-milk-white, not white-on-color. -->
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#FFFDFB" Offset="0" />
+                <GradientStop Color="#FFF9F3" Offset="0.45" />
+                <GradientStop Color="#F5EFE8" Offset="1" />
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <VerticalStackLayout Grid.Row="1" Spacing="14" HorizontalOptions="Center">
+            <Image x:Name="Mark" Source="logo.png" WidthRequest="140" HeightRequest="140" Opacity="0" Scale="0.7" />
+            <Label x:Name="AppName" Text="PDF Reader" FontSize="30" FontFamily="OpenSansSemibold"
+                   TextColor="{StaticResource Primary}" HorizontalOptions="Center" />
+            <Label x:Name="Tagline" Text="Đọc · chỉnh sửa · ký tên PDF" FontSize="14" TextColor="{StaticResource InkSoft}"
+                   HorizontalOptions="Center" />
+        </VerticalStackLayout>
+
+        <VerticalStackLayout Grid.Row="3" Spacing="4" Padding="0,0,0,36" HorizontalOptions="Center">
+            <ActivityIndicator IsRunning="True" Color="{StaticResource Primary}" WidthRequest="22" HeightRequest="22" Margin="0,0,0,10" />
+            <Label x:Name="VersionLabel" FontSize="12" TextColor="{StaticResource InkSoft}" HorizontalOptions="Center" />
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>
