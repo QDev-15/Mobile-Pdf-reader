@@ -13,9 +13,10 @@ namespace PdfReader.Views;
 /// the result as a new PDF -- nothing is touched until then and the original is never modified. Every kept
 /// page is copied exactly as it was (text, vectors, fonts), see <see cref="PdfStructureOps.Rebuild"/>.
 /// </summary>
-[QueryProperty(nameof(Source), "source")]
-[QueryProperty(nameof(DisplayName), "displayName")]
-public partial class PageManagerPage : ContentPage
+// Shell parameters come in through IQueryAttributable, not [QueryProperty]: that attribute is applied by
+// reflection and silently stops working under IL trimming (AndroidLinkMode=Full): Uri stayed null and the
+// page opened blank in Release builds (found 2026-10-17 on an emulator).
+public partial class PageManagerPage : ContentPage, IQueryAttributable
 {
 	private readonly ResultService _results;
 	private readonly PdfLibrary _library;
@@ -24,6 +25,12 @@ public partial class PageManagerPage : ContentPage
 
 	public string? Source { get; set; }
 	public string? DisplayName { get; set; }
+
+	public void ApplyQueryAttributes(IDictionary<string, object> query)
+	{
+		if (query.TryGetValue("source", out object? source)) Source = source as string;
+		if (query.TryGetValue("displayName", out object? name)) DisplayName = name as string;
+	}
 
 	public sealed class PageItem(int sourceIndex) : INotifyPropertyChanged
 	{

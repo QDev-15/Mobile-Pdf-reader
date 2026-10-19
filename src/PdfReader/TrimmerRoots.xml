@@ -1,0 +1,9 @@
+<linker>
+  <!-- Types whose properties are only reached through XAML {Binding Name} (reflection bindings, no x:DataType):
+       with AndroidLinkMode=Full the trimmer would otherwise drop any property that no C# code reads. -->
+  <assembly fullname="PdfReader">
+    <type fullname="PdfReader.Models.RecentPdfRecord" preserve="all" />
+    <type fullname="PdfReader.Views.PageManagerPage/PageItem" preserve="all" />
+    <type fullname="PdfReader.Views.ReaderPage/OutlineItem" preserve="all" />
+  </assembly>
+</linker>

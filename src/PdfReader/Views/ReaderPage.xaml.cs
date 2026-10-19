@@ -15,10 +15,10 @@ namespace PdfReader.Views;
 /// selected text, page and PDF tools. The page is mostly menus and dialogs around the native view; the
 /// heavy lifting is in <see cref="PdfCanvasView"/>, <see cref="PdfSession"/> and <see cref="PdfExporter"/>.
 /// </summary>
-[QueryProperty(nameof(Uri), "uri")]
-[QueryProperty(nameof(DisplayName), "displayName")]
-[QueryProperty(nameof(External), "external")]
-public partial class ReaderPage : ContentPage
+// Shell parameters come in through IQueryAttributable, not [QueryProperty]: that attribute is applied by
+// reflection and silently stops working under IL trimming (AndroidLinkMode=Full): Uri stayed null and the
+// page opened blank in Release builds (found 2026-10-17 on an emulator).
+public partial class ReaderPage : ContentPage, IQueryAttributable
 {
 	private static readonly uint[] Palette = [0xFF1565C0, 0xFFD32F2F, 0xFF212121, 0xFF2E7D32, 0xFFEF6C00, 0xFFFFD600];
 	private const uint HighlightColor = 0x88FFEB3B;
@@ -67,6 +67,14 @@ public partial class ReaderPage : ContentPage
 
 	/// <summary>Opened straight from another app: closing the reader then closes the whole app.</summary>
 	public bool External { get; set; }
+
+	public void ApplyQueryAttributes(IDictionary<string, object> query)
+	{
+		if (query.TryGetValue("uri", out object? uri)) Uri = uri as string;
+		if (query.TryGetValue("displayName", out object? name)) DisplayName = name as string;
+		if (query.TryGetValue("external", out object? external))
+			External = external is bool b ? b : external is string s && bool.TryParse(s, out bool parsed) && parsed;
+	}
 
 	public ReaderPage(RecentPdfStore store, PdfLibrary library, OcrService ocr, SignatureStore signatures, SignatureImageStore signatureImages,
 		PdfExporter exporter, ResultService results, IAdsService ads)
@@ -131,6 +139,7 @@ public partial class ReaderPage : ContentPage
 		}
 		catch (Exception ex)
 		{
+			Android.Util.Log.Error("PdfReader", $"open failed: {ex}");
 			await this.AlertAsync("Không đọc được PDF", ex.Message, "Đóng");
 			await LeaveAsync();
 		}
