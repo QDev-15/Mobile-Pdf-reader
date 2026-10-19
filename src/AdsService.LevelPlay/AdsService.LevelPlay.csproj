@@ -25,6 +25,15 @@
          transitive deps of its own (empty dependencies list in its POM). -->
     <AndroidMavenLibrary Include="com.unity3d.ads-mediation:mediation-sdk" Version="9.6.1" />
     <AndroidMavenLibrary Include="com.unity3d.ads-mediation:adquality-sdk" Version="9.10.0" Bind="false" />
+    <!-- Unity Ads network adapter + base SDK: needed so the Unity Ads network in the LevelPlay dashboard can fill.
+         Bind="false": only the Java classes are packed, the mediation SDK loads the adapter by reflection. The base
+         SDK's own dependencies follow. -->
+    <AndroidMavenLibrary Include="com.unity3d.ads-mediation:unityads-adapter" Version="5.14.0" Bind="false" />
+    <AndroidMavenLibrary Include="com.unity3d.ads:unity-ads" Version="4.21.0" Bind="false" />
+    <AndroidMavenLibrary Include="androidx.datastore:datastore" Version="1.0.0" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="androidx.datastore:datastore-core" Version="1.0.0" Repository="Google" Bind="false" />
+    <AndroidMavenLibrary Include="com.google.protobuf:protobuf-kotlin-lite" Version="3.25.6" Bind="false" />
+    <AndroidMavenLibrary Include="com.unity3d.coherence:coherencelib" Version="0.2.0" Bind="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,6 +55,21 @@
     <!-- LevelPlay's own kotlin-stdlib dependency (XA4242); 2.4.0.1 because Xamarin.AndroidX.Core 1.19.0.1
          (above) already requires at least that version transitively (NU1605 named the exact floor). -->
     <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.4.0.1" />
+    <!-- Transitive dependencies of the Unity Ads base SDK (XA4242 named these). -->
+    <PackageReference Include="Xamarin.AndroidX.Activity.Ktx" Version="1.13.0.1" />
+    <PackageReference Include="Xamarin.AndroidX.Core.Core.Ktx" Version="1.19.0.1" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.Process" Version="2.11.0.1" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.Runtime.Ktx" Version="2.11.0.1" />
+    <PackageReference Include="Xamarin.AndroidX.Startup.StartupRuntime" Version="1.2.0.8" />
+    <PackageReference Include="Xamarin.AndroidX.WebKit" Version="1.17.0" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="1.11.0.1" />
+    <PackageReference Include="Xamarin.Kotlin.StdLib.Jdk8" Version="2.4.0.1" />
+    <PackageReference Include="Square.OkHttp3" Version="5.5.0" />
+    <PackageReference Include="Xamarin.AndroidX.Work.Work.Runtime.Ktx" Version="2.11.2.1" />
+    <PackageReference Include="Xamarin.GooglePlayServices.CroNet" Version="118.1.1.4" />
+    <PackageReference Include="Xamarin.Protobuf.JavaLite" Version="4.35.1.1" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="1.11.0.1" />
+    <PackageReference Include="Xamarin.KotlinX.Coroutines.Core.Jvm" Version="1.11.0.1" />
   </ItemGroup>
 
 </Project>
