@@ -84,6 +84,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<PdfOpener>();
 		builder.Services.AddSingleton<ResultService>();
 		builder.Services.AddSingleton<IDownloadsService, AndroidDownloadsService>();
+		builder.Services.AddSingleton<IPrintService, AndroidPrintService>();
 		builder.Services.AddSingleton<ILicenseService, LicenseService>();
 		builder.Services.AddSingleton<ProUpgrade>();
 		// Fully qualified: the "AdsService" namespace (the ads library) and this app's own

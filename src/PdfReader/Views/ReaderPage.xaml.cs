@@ -42,6 +42,7 @@ public partial class ReaderPage : ContentPage, IQueryAttributable
 	private readonly PdfExporter _exporter;
 	private readonly ResultService _results;
 	private readonly IAdsService _ads;
+	private readonly IPrintService _print;
 	private readonly PadDrawable _pad = new();
 	private readonly List<Grid> _tipChips = [];
 	private readonly List<(Button Chip, uint Color)> _colorChips = [];
@@ -77,7 +78,7 @@ public partial class ReaderPage : ContentPage, IQueryAttributable
 	}
 
 	public ReaderPage(RecentPdfStore store, PdfLibrary library, OcrService ocr, SignatureStore signatures, SignatureImageStore signatureImages,
-		PdfExporter exporter, ResultService results, IAdsService ads)
+		PdfExporter exporter, ResultService results, IAdsService ads, IPrintService print)
 	{
 		InitializeComponent();
 		_store = store;
@@ -88,6 +89,7 @@ public partial class ReaderPage : ContentPage, IQueryAttributable
 		_exporter = exporter;
 		_results = results;
 		_ads = ads;
+		_print = print;
 		SignaturePad.Drawable = _pad;
 		var drop = new DropGestureRecognizer { AllowDrop = true };
 		drop.Drop += OnViewerDrop;
@@ -370,7 +372,7 @@ public partial class ReaderPage : ContentPage, IQueryAttributable
 	{
 		if (_session == null || _engine == null) return;
 		string? choice = await this.ChoiceAsync(DisplayName ?? "PDF", "Đóng", null,
-			"Đổi tên file", "Sắp xếp / xoay / xoá trang", "Mục lục", "Chế độ đọc…", "Chọn & sao chép chữ trang này", "Công cụ PDF…", "Chia sẻ file gốc");
+			"Đổi tên file", "Sắp xếp / xoay / xoá trang", "Mục lục", "Chế độ đọc…", "Chọn & sao chép chữ trang này", "Công cụ PDF…", "In ấn", "Chia sẻ file gốc");
 		switch (choice)
 		{
 			case "Đổi tên file": await RenameAsync(); break;
@@ -379,11 +381,28 @@ public partial class ReaderPage : ContentPage, IQueryAttributable
 			case "Chế độ đọc…": await PickThemeAsync(); break;
 			case "Chọn & sao chép chữ trang này": await _engine.SelectAllOnPageAsync(); break;
 			case "Công cụ PDF…": await ShowPdfToolsAsync(); break;
+			case "In ấn": await PrintAsync(); break;
 			case "Chia sẻ file gốc":
 				try { await _results.ShareAsync(_session.Path, $"{BaseName}.pdf", "application/pdf"); }
 				catch (Exception ex) { await this.AlertAsync("Không chia sẻ được", ex.Message, "Đóng"); }
 				break;
 		}
+	}
+
+	/// <summary>Hands the file to the OS print dialog -- printer (Wi-Fi/USB/Bluetooth), paper size, copies
+	/// and page range are all that native screen, not anything built here. See <see cref="IPrintService"/>.</summary>
+	private async Task PrintAsync()
+	{
+		if (_session == null) return;
+		if (!_print.IsSupported)
+		{
+			await this.AlertAsync("Không hỗ trợ in", "Thiết bị này không hỗ trợ in ấn.", "Đóng");
+			return;
+		}
+		string? source = await SourceWithAnnotationsAsync();
+		if (source == null) return;
+		try { await _print.PrintAsync(source, DisplayName ?? BaseName ?? "PDF", _session.PageCount); }
+		catch (Exception ex) { await this.AlertAsync("Không in được", ex.Message, "Đóng"); }
 	}
 
 	/// <summary>Changes only the Dashboard / title-bar label -- the PDF bytes and its file name on disk are

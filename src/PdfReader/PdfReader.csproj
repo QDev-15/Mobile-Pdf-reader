@@ -23,7 +23,8 @@
 		<!-- App Identifier -->
 		<ApplicationId>com.tonyq.pdfreader</ApplicationId>
 
-		<!-- Versions. Bump ApplicationVersion (Android versionCode) on every build going to a device or to Play. -->
+		<!-- Versions. Bump App40
+		licationVersion (Android versionCode) on every build going to a device or to Play. -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 		<ApplicationVersion>7</ApplicationVersion>
 
