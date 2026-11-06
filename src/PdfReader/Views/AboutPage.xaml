@@ -80,7 +80,15 @@
             <Label Text="QUYỀN RIÊNG TƯ" Style="{StaticResource Section}" />
             <VerticalStackLayout Style="{StaticResource Card}">
                 <Label Style="{StaticResource Body}"
-                       Text="Ảnh, tài liệu, chữ ký và PDF chỉ được lưu trên điện thoại này và không được gửi đi đâu, trừ khi chính bạn chọn Chia sẻ. Ứng dụng dùng mạng cho quảng cáo (bản miễn phí), xác thực mua Pro, và kiểm tra/bắt buộc cập nhật qua Google Play; không thu thập dữ liệu sử dụng." />
+                       Text="Ảnh, tài liệu, chữ ký và PDF chỉ được lưu trên điện thoại này và không được gửi đi đâu, trừ khi chính bạn chọn Chia sẻ. Nhận dạng chữ (OCR) chạy ngay trên máy bằng Google ML Kit, không gửi ảnh hay văn bản của bạn lên máy chủ nào. Ứng dụng dùng mạng cho ba việc khác: (1) quảng cáo ở bản miễn phí — Unity LevelPlay (mediation quảng cáo, gồm ironSource và các đối tác quảng cáo trong chuỗi mediation) có thể thu thập Mã quảng cáo (Advertising ID), dữ liệu thiết bị và dữ liệu tương tác quảng cáo; (2) xác thực mua Pro qua Google Play Billing; (3) kiểm tra và bắt buộc cập nhật qua Google Play. Ngoài các việc trên, ứng dụng không tự thu thập hay gửi dữ liệu sử dụng của bạn." />
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnPrivacyPolicy" />
+                    </Grid.GestureRecognizers>
+                    <Label Text="{x:Static views:Icons.Info}" FontFamily="Icons" FontSize="20" TextColor="{StaticResource Primary}" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="Xem chính sách quyền riêng tư đầy đủ" FontSize="14" TextDecorations="Underline"
+                           TextColor="{StaticResource Primary}" VerticalOptions="Center" />
+                </Grid>
             </VerticalStackLayout>
 
             <Label Text="BẢN QUYỀN" Style="{StaticResource Section}" />

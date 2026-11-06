@@ -26,7 +26,7 @@
 		<!-- Versions. Bump App40
 		licationVersion (Android versionCode) on every build going to a device or to Play. -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-		<ApplicationVersion>7</ApplicationVersion>
+		<ApplicationVersion>8</ApplicationVersion>
 
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">26.0</SupportedOSPlatformVersion>
 
@@ -48,7 +48,7 @@
 		     Feeds AdsProviderOptions.IsAdsEnabled (MauiProgram.cs): the master ads switch in the shared AdsService
 		     library, same property and meaning as in DocScanner. Off = the ad SDK is not even initialised and nothing
 		     loads, in every build type. Independent of AdsMode above: leave AdsMode at its default. -->
-		<AdsEnabled Condition="'$(AdsEnabled)' == ''">true</AdsEnabled>
+		<AdsEnabled Condition="'$(AdsEnabled)' == ''">false</AdsEnabled>
 		<DefineConstants Condition="'$(AdsEnabled)' == 'false'">$(DefineConstants);ADS_DISABLED</DefineConstants>
 
 		<!-- There used to be a PdfReaderRealAdMobAppId + AndroidManifestPlaceholders pair here, gating the

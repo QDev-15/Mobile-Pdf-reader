@@ -112,7 +112,7 @@
 3. **PDF có mật khẩu** — cần màn hình nhập password khi mở file bị khoá.
 4. **Quyền truy cập file** — Storage Access Framework (SAF) theo scoped storage Android 11+, không xin quyền storage rộng.
 5. **Tên app / package id** — gợi ý giữ namespace `btk.` cho đồng bộ (vd `btk.pdfreader`), cần tên app riêng biệt dễ phân biệt trên Play Store.
-6. **Play Console**: dùng chung tài khoản dev đã có — khả năng cao **không phải lặp lại** vòng 12 tester/14 ngày cho app thứ 2 (cần xác nhận trực tiếp khi tạo app mới).
+6. **Play Console**: dùng chung tài khoản dev đã có — **cập nhật 06/11/2026**: giả định cũ "không phải lặp lại" đã SAI. Thực tế với DocScanner (xem `Mobile-doc-scanner/update test 06112026.md`): app đó bị Google bắt test lại 14 ngày dù đã qua vòng test lần đầu, nguyên nhân chính là mức soi xét ở **cấp tài khoản** (tài khoản AdMob gắn cùng dev đã bị đóng 2 lần) chứ không phải tính theo từng app riêng lẻ. Vậy PdfReader (app thứ 2, cùng tài khoản) nên giả định **CÓ khả năng cũng phải qua đủ 12 tester/14 ngày**, không nên trông chờ được miễn.
 7. **Repo mới**: cần đặt tên + khởi tạo (git init, solution .sln, copy các file ở mục 7 vào đúng vị trí).
 8. **Accessibility** — cỡ chữ/reflow text cho người khó đọc chữ nhỏ (nice-to-have, không MVP).
 9. **Test đa thiết bị** trước khi public.
@@ -131,5 +131,5 @@
 - [x] Chốt tên repo mới + tên app + package id (`Mobile-Pdf-reader`, "PDF Reader", `btk.pdfreader`)
 - [x] Chốt hướng UI style: Material You + FAB (nút nổi chỉnh sửa góc dưới trái), nền giấy ngà, nhấn đỏ
 - [ ] Test nhanh ML Kit OCR với vài file PDF scan tiếng Việt thật — xác nhận độ chính xác chấp nhận được trước khi commit kiến trúc
-- [ ] Xác nhận lại với Play Console xem app thứ 2 có bị bắt lặp lại vòng 12 tester/14 ngày không
+- [ ] Giả định PdfReader CŨNG phải qua đủ 12 tester/14 ngày như app thứ 1 (xem mục 8.6) — không trông chờ được miễn trừ
 - [ ] Tạo AdMob app + ad unit mới, tạo keystore mới
