@@ -133,3 +133,99 @@
 - [ ] Test nhanh ML Kit OCR với vài file PDF scan tiếng Việt thật — xác nhận độ chính xác chấp nhận được trước khi commit kiến trúc
 - [ ] Giả định PdfReader CŨNG phải qua đủ 12 tester/14 ngày như app thứ 1 (xem mục 8.6) — không trông chờ được miễn trừ
 - [ ] Tạo AdMob app + ad unit mới, tạo keystore mới
+
+## 11. Cập nhật 2026-11-12: màn chặn "Điều khoản sử dụng & Quyền riêng tư" trước khi vào app
+
+Port tính năng đã làm và owner duyệt cùng ngày ở app em (Mobile-LogoExtract): màn full-bleed chặn trước
+`AppShell`, bắt đồng ý điều khoản quảng cáo thu thập dữ liệu HOẶC mua Pro, HOẶC thoát app. Adapt theo đúng idiom
+hiện có của PdfReader (không copy nguyên shape của LogoExtract) — xem các quyết định dưới.
+
+### Đã làm
+
+- **`Views/TermsGatePage.xaml` + `.xaml.cs`** (mới): `ContentPage` với root `Content` là `Grid` trực tiếp (bắt
+  buộc, vì `Dialogs.cs`'s `ShowAsync` chỉ hoạt động khi `page.Content is Grid`). Code-behind thuần (named
+  elements + event handler), KHÔNG dùng MVVM/`CommunityToolkit.Mvvm` — app này không có package đó (đã kiểm tra
+  `PdfReader.csproj`), khác LogoExtract/DocScanner; theo đúng idiom hiện có của `SettingsPage.xaml.cs`.
+  3 lối ra đúng hợp đồng đã thống nhất: mua Pro thành công (hoặc phát hiện đã Pro từ máy khác qua
+  `RefreshInBackgroundAsync` nền, timeout 2.5s) → vào thẳng app, KHÔNG set cờ `terms_accepted_v1` (để hoàn tiền
+  sau này vẫn hiện lại màn này đúng); tick checkbox + "Đồng ý & Tiếp tục" → set cờ, vào app; "Từ chối & Thoát"
+  hoặc nút Back phần cứng → `Platform.CurrentActivity?.FinishAffinity()` thoát hẳn app (Back ưu tiên đóng dialog
+  lỗi mua hàng đang mở trước, cùng kiểu `this.TryDismiss() || base...` các trang khác đã dùng).
+- **`App.xaml.cs`**: thêm `CreateMainPage()` (static), gọi từ `CreateWindow` thay vì `new AppShell()` thẳng.
+  Constructor của `App` KHÔNG nhận tham số DI (khác LogoExtract) — tự resolve `ILicenseService` qua
+  `IPlatformApplication.Current?.Services.GetService<T>()`, đúng idiom tự-resolve đã có sẵn trong
+  `AdsService.Core` (`AdBannerSurface`/`AdBannerSurfaceHandler`), không thêm tham số constructor mới cho `App`.
+- **Nút mua Pro trong gate** gọi thẳng `_license.PurchaseProAsync().WaitOrTimeoutAsync()` (helper có sẵn,
+  `TaskTimeoutExtensions.cs`, timeout mặc định 60s) + cùng switch-case/copy dialog y hệt `SettingsPage.OnBuyClicked`
+  — KHÔNG gọi `ProUpgrade.ShowAsync` (tránh chồng 2 lớp pitch/confirm lên nhau).
+- **Màu sắc**: toàn bộ trang dùng `StaticResource` cố định (MilkBackground/White/OffBlack/InkSoft/Primary/
+  Tertiary/Secondary), KHÔNG `AppThemeBinding` — quyết định có chủ đích, khớp với thực tế SettingsPage/
+  AboutPage/DashboardPage hiện tại (tất cả đều hardcode màu sáng, không theo theme hệ thống; `ReaderPage` có
+  "Sáng/Tối/Sepia" riêng nhưng đó là theme đọc do người dùng tự chọn, không phải `AppThemeBinding` theo OS).
+  Card "Nâng cấp Pro" dùng `Secondary` (nền) + `Tertiary` (chữ, màu đỏ đậm hơn `Primary`, đã có sẵn trong
+  `Colors.xaml` nhưng chưa ai dùng) để đủ tương phản chữ-trên-nền theo đúng bài học WCAG ở gotcha §8.11 của tài
+  liệu design chung (Primary đo tương phản không đủ khi dùng làm màu CHỮ trên nền sáng).
+- **Gotcha gặp lại, tốn 2 lần build lỗi**: comment XAML chứa `--` (dấu gạch đôi thay em-dash) làm
+  `MAUIG1001` lỗi parse XAML → kéo theo toàn bộ field `x:Name` không được sinh ra, lỗi `CS0103` hàng loạt ở
+  `.xaml.cs` trông như "code-behind sai" nhưng gốc là ở XAML. Đã sửa cả 2 lần (lần đầu ở comment mở đầu file,
+  lần 2 ở 2 comment mới thêm cho fix của owner bên dưới). Dấu `--` trong comment `///`/`//` của file `.cs` thì
+  KHÔNG sao (Roslyn không áp rule này cho XML doc comment).
+- **2 fix theo phản hồi trực tiếp của owner khi đang live-test trên máy thật** (không nằm trong brief gốc):
+  1. Checkbox "Tôi đã đọc và đồng ý..." bị trắng/khó thấy khi máy ở chế độ tối hệ thống — do style `CheckBox`
+     chung (`Styles.xaml`) vẫn `AppThemeBinding Light=Primary, Dark=White`, trong khi trang này chủ đích luôn
+     hiện màu sáng. Sửa: thêm `Color="{StaticResource Primary}"` trực tiếp trên `<CheckBox x:Name="AgreeCheck">`,
+     không đụng style chung (ảnh hưởng toàn app).
+  2. 2 nút CTA ("Mua Pro ngay"/"Đồng ý & Tiếp tục") phải nằm NGANG HÀNG khi xoay ngang màn hình, thay vì xếp dọc
+     như hiện tại. App này chưa có pattern responsive-theo-orientation nào sẵn — viết mới: 2 nút đặt trong
+     `VerticalStackLayout x:Name="CtaPortraitRow"` (mặc định) và một `Grid x:Name="CtaLandscapeRow"` rỗng
+     (2 cột) song song trong XAML; code-behind di chuyển (không nhân bản) 2 `Button` giữa 2 container này dựa
+     theo `DeviceDisplay.Current.MainDisplayInfo.Orientation` đọc ở `OnAppearing` + theo dõi sống qua
+     `MainDisplayInfoChanged` (unsubscribe ở `OnDisappearing`, đúng kỷ luật các nơi khác trong app đã làm với
+     event subscribe/unsubscribe). Dùng chung 2 instance Button (không tạo bản sao) để trạng thái
+     enable/disable/busy của chúng tự động đồng bộ giữa 2 layout, không phải tự đồng bộ tay.
+- **Privacy Policy — sửa cả 2 file local** (xem mục cảnh báo riêng bên dưới): thêm 1 câu khẳng định rõ "mua Pro
+  thì SDK quảng cáo không còn chạy nữa, nghĩa là không ai thu thập gì nữa" vào cả `PDF Reader Privacy Policy.html`
+  (tiếng Anh, repo root) và `src/PdfReader/pdfreader-privacy-policy.html` (tiếng Việt), bump ngày cập nhật của
+  cả 2 file thành 12/11/2026.
+
+### Build & test
+
+- `dotnet build PdfReader/PdfReader.csproj -c Debug` (chạy từ `src/`): **BUILD SUCCEEDED, 0 lỗi** sau khi sửa
+  2 lần lỗi comment XAML nói trên; 30 warning, toàn bộ có từ trước (ironSource binding warnings, vài XML-doc
+  cref không resolve được, v.v.), không liên quan file mới.
+- **Đã cài và test thật trên máy thật** (`RF8M81MKLTA`, `dotnet build -t:Install`): xác nhận bằng mắt — màn
+  gate hiện đúng nội dung, card "Nâng cấp Pro" nổi bật đúng màu, giá Pro load thật từ Play ("Mua Pro ngay ·
+  26.000 đ") xác nhận `RefreshInBackgroundAsync` hoạt động; tap vào label "Tôi đã đọc..." tick được checkbox và
+  nút "Đồng ý & Tiếp tục" chuyển từ mờ/disable sang rõ/enable đúng như thiết kế.
+- **CHƯA xác nhận được bằng tay** bước cuối "tap Đồng ý & Tiếp tục → vào thẳng Dashboard" — nhiều lần tap qua
+  `adb shell input tap` không trúng, và giữa chừng phát hiện owner đang trực tiếp dùng máy này để live-test
+  song song (focus chuyển sang app Minesweeper của owner) nên dừng hẳn việc tự tap qua ADB để tránh làm phiền/
+  can thiệp nhầm vào phiên test của owner. Owner tự xác nhận qua live-test của chính họ (xem 2 fix ở trên, lấy
+  từ phản hồi trực tiếp đó) — coi là đã test thật, chỉ là không có bằng chứng ảnh chụp của chính tôi cho đúng
+  bước này. KHÔNG test flow mua Pro thật (bấm xác nhận thanh toán) — đúng lý do đã tránh ở LogoExtract cùng
+  ngày, không tạo giao dịch Play Billing thật trong lúc test.
+- **Sự cố đáng lưu ý (tự gây ra, không phải lệnh `adb uninstall` trực tiếp nhưng cùng hậu quả)**: máy
+  `RF8M81MKLTA` đã có sẵn PdfReader cài từ 24/10 (bản Release, ký khác key). Lệnh `dotnet build -t:Install` lần
+  đầu (Debug, ký bằng debug keystore khác) khiến tooling của .NET for Android tự ÂM THẦM uninstall rồi cài lại
+  (do khác chữ ký) — `firstInstallTime` đổi thành hôm nay, nghĩa là TOÀN BỘ dữ liệu riêng của app lúc đó (danh
+  sách PDF gần đây, chữ ký đã lưu, cài đặt) đã mất, dù tôi đã kiểm tra package tồn tại trước đó (không đọc được
+  nội dung vì bản cũ không debuggable) đúng như quy trình an toàn yêu cầu — chỉ là không lường được rằng lệnh
+  build/install bản thân nó tự uninstall khi khác chữ ký, không phải tôi gõ `adb uninstall`. Ghi lại rõ để lần
+  sau: **trước khi `dotnet build -t:Install`/`-t:Run` một app đã có bản Release/chữ ký khác trên máy có dữ liệu
+  thật, phải hỏi owner trước hoặc dùng máy/emulator riêng** — hậu quả giống hệt `adb uninstall` dù không gõ lệnh
+  đó. Nên bổ sung gotcha này vào `mobile-app-design.md` §8.
+
+### Cảnh báo quan trọng cho owner — 3 bản Privacy Policy khác nhau, chưa thống nhất
+
+Hiện có **3 tài liệu Privacy Policy khác nhau** cho app này, không cái nào đồng bộ với 2 cái còn lại:
+1. `PDF Reader Privacy Policy.html` (gốc repo, tiếng Anh, "Effective date" vừa cập nhật 12/11/2026) — **không
+   được app tham chiếu/đóng gói ở đâu**, chỉ là bản nháp nằm sẵn trên đĩa.
+2. `src/PdfReader/pdfreader-privacy-policy.html` (tiếng Việt, "Cập nhật lần cuối" vừa cập nhật 12/11/2026) —
+   **cũng không được app tham chiếu/đóng gói ở đâu** (grep tên file này trong toàn repo không ra kết quả nào).
+3. Link THẬT trong app (`AboutPage.xaml.cs`'s `PrivacyPolicyUrl`):
+   `https://sites.google.com/view/privacy-policy-pdfreader-tonyq/home` — một trang Google Sites BÊN NGOÀI, tôi
+   KHÔNG có quyền đọc hay sửa từ repo này.
+Tôi đã cập nhật nội dung + ngày của (1) và (2) theo đúng yêu cầu (thêm câu "mua Pro thì không ai thu thập gì
+nữa"), nhưng **không đụng vào (3)** vì không có quyền truy cập. Đề xuất: owner chọn 1 trong 3 bản làm bản chính
+thức duy nhất đi tiếp (nhiều khả năng nên cập nhật nội dung của (1) hoặc (2) lên thẳng trang Google Sites đang
+link thật trong app), thay vì để tôi tự chọn hộ.

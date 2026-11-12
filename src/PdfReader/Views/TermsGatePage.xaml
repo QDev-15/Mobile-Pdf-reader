@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="PdfReader.Views.TermsGatePage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Shell.NavBarIsVisible="False"
+    BackgroundColor="{StaticResource MilkBackground}">
+
+    <!-- Owner's request, ported 2026-11-12 from the sibling LogoExtract repo's own already-shipped gate:
+         a blocking "terms + ads data collection" screen shown once before the user ever reaches
+         AppShell/DashboardPage; see App.xaml.cs's CreateMainPage for the exact "when to show this at all"
+         decision and TermsGatePage.xaml.cs for the 3 outcomes. There is no Shell wrapping this page (same
+         reason SplashPage itself has none at this point in the startup sequence: AppShell does not exist
+         yet), so this is a plain full-bleed ContentPage, not a routed Shell page: no back-arrow header, no
+         ad banner (actively wrong here: this screen exists specifically for people who have NOT yet agreed
+         to ads, and a real Pro buyer never sees this long enough for a banner to matter anyway).
+
+         Colors are hardcoded StaticResource (MilkBackground/White/OffBlack/InkSoft/Primary/Tertiary/Secondary),
+         NOT AppThemeBinding, matching every other existing screen in THIS app (SettingsPage, AboutPage,
+         DashboardPage all do the same thing today: their root BackgroundColor and card colors are plain
+         StaticResource, not theme-bound against the OS dark/light setting). ReaderPage's own "Sáng/Tối/Sepia"
+         reading theme is a separate, user-picked content-rendering concept (SettingsPage.ThemeKey), not OS
+         AppThemeBinding either, so there is in fact no screen in this app today that re-skins its own chrome
+         for the OS theme; this new page intentionally matches that actual shipped convention rather than
+         introducing one visually-inconsistent one-off dark variant. Flagged in this repo's CLAUDE.md as a
+         judgment call, not silently decided. -->
+    <Grid RowDefinitions="*,Auto">
+
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="24,36,24,16" Spacing="14">
+                <Label Text="Điều khoản sử dụng &amp; Quyền riêng tư" FontFamily="OpenSansSemibold" FontSize="21"
+                       TextColor="{StaticResource OffBlack}" />
+
+                <Label FontSize="14" LineHeight="1.35" TextColor="{StaticResource OffBlack}"
+                       Text="PDF Reader không thu thập, không lưu trữ và không gửi đi bất kỳ thông tin cá nhân nào của bạn. Toàn bộ file và dữ liệu bạn mở/tạo ra chỉ lưu trên máy này." />
+
+                <Label FontSize="14" LineHeight="1.35" TextColor="{StaticResource OffBlack}"
+                       Text="Ứng dụng có hiển thị quảng cáo để duy trì miễn phí, thông qua Unity LevelPlay và các mạng quảng cáo trong chuỗi mediation. Các mạng quảng cáo này có thể thu thập: mã quảng cáo (Advertising ID), dữ liệu thiết bị, và dữ liệu tương tác quảng cáo — theo chính sách riêng của họ, không phải của PDF Reader." />
+
+                <!-- The upsell moment, made visually distinct per spec: Secondary (pale parchment tint, the
+                     one existing token whose entire job is exactly this kind of highlight, see Colors.xaml)
+                     with Tertiary (a deliberately darker shade of the brand red, already defined but unused
+                     elsewhere in this app) as the foreground text, so it reads at proper contrast on the pale
+                     tint instead of the brand Primary red, which measures too light for body-text-sized
+                     foreground use on a light surface (same WCAG lesson as mobile-app-design.md §8 gotcha 11). -->
+                <Border BackgroundColor="{StaticResource Secondary}" StrokeThickness="0" Padding="16,14">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="16" />
+                    </Border.StrokeShape>
+                    <Label FontSize="14" FontFamily="OpenSansSemibold" LineHeight="1.35" TextColor="{StaticResource Tertiary}"
+                           Text="Nâng cấp Pro: gỡ bỏ hoàn toàn quảng cáo. Khi đó không có SDK quảng cáo nào chạy trong ứng dụng — nghĩa là không ai thu thập bất kỳ thông tin nào kể trên." />
+                </Border>
+
+                <!-- Checkbox row: label is ALSO tappable (bigger, easier target than the bare CheckBox
+                     alone; the CheckBox itself already gets the 44x44dp floor from Styles.xaml's own
+                     unnamed CheckBox style). -->
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,8,0,0">
+                    <!-- Explicit Color override: the global unnamed CheckBox style (Styles.xaml) is
+                         AppThemeBinding Light=Primary/Dark=White, but this page deliberately always renders
+                         with its Light-mode literal palette regardless of OS theme (see the top-of-file
+                         comment); left themed, the checkmark resolves to White on a device in OS dark mode
+                         and disappears against this page's own always-light background. Owner-reported
+                         on-device, 2026-11-12. -->
+                    <CheckBox x:Name="AgreeCheck" Grid.Column="0" VerticalOptions="Center" Color="{StaticResource Primary}" CheckedChanged="OnAgreeCheckedChanged" />
+                    <Label Grid.Column="1" Text="Tôi đã đọc và đồng ý với nội dung trên" FontSize="13.5" VerticalOptions="Center"
+                           TextColor="{StaticResource OffBlack}">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnToggleAgreedTapped" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </Grid>
+
+                <ActivityIndicator x:Name="Busy" IsRunning="False" IsVisible="False" HeightRequest="24" Color="{StaticResource Primary}" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Fixed button tray: White, one visible notch lighter-reading than the Milk page background so
+             it reads as its own layer (mobile-app-design.md §5.3), same idiom as Settings/About's own "Card"
+             style background. -->
+        <VerticalStackLayout Grid.Row="1" Spacing="10" Padding="24,14,24,20" BackgroundColor="{StaticResource White}">
+            <BoxView HeightRequest="1" Margin="-24,0,-24,4" Color="{StaticResource HairLine}" />
+
+            <!-- The two main CTAs live in ONE of these two containers at a time (reparented in code, see
+                 ApplyOrientation in the code-behind) rather than being duplicated: portrait stacks them
+                 (CtaPortraitRow, the default below), landscape swaps them into CtaLandscapeRow's two equal
+                 columns side by side; owner-requested, live on-device feedback, 2026-11-12. Using the SAME
+                 Button instances for both layouts (moved, not cloned) keeps their enabled/disabled/busy state
+                 automatically in sync with no duplicate logic to maintain. -->
+            <VerticalStackLayout x:Name="CtaPortraitRow" Spacing="10">
+                <!-- Primary CTA: solid pill, hardcoded Primary/White, same literal-color convention (not
+                     AppThemeBinding) as DashboardPage's "Mở file PDF" button and SettingsPage's own "Mua Pro". -->
+                <Button x:Name="BuyButton" Text="Mua Pro ngay" Clicked="OnBuyClicked"
+                        BackgroundColor="{StaticResource Primary}" TextColor="White"
+                        CornerRadius="24" HeightRequest="48" FontAttributes="Bold" />
+
+                <!-- Secondary/outlined CTA: disabled (dimmed via code, see OnAgreeCheckedChanged) until the
+                     checkbox above is ticked. -->
+                <Button x:Name="AgreeButton" Text="Đồng ý &amp; Tiếp tục" Clicked="OnAgreeAndContinueClicked" IsEnabled="False" Opacity="0.45"
+                        BackgroundColor="Transparent" BorderWidth="1.5" BorderColor="{StaticResource Primary}" TextColor="{StaticResource Primary}"
+                        CornerRadius="24" HeightRequest="48" FontAttributes="Bold" />
+            </VerticalStackLayout>
+            <Grid x:Name="CtaLandscapeRow" ColumnDefinitions="*,*" ColumnSpacing="10" IsVisible="False" />
+
+            <!-- Tertiary/plain-text "give up" action: deliberately the least visually prominent of the
+                 three, same convention as every dialog's outlined-cancel/filled-accept pairing, just one rung
+                 further down since this one exits the app entirely. -->
+            <Button Text="Từ chối &amp; Thoát" Clicked="OnDeclineClicked"
+                    BackgroundColor="Transparent" TextColor="{StaticResource InkSoft}" FontSize="13" HeightRequest="44" />
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>
