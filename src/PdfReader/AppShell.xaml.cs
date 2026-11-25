@@ -12,6 +12,14 @@ public partial class AppShell : Shell
 	private ShellItem? _dashboardItem;
 	private ShellItem? _launchItem;
 
+	/// <summary>True only when Launch replaced Dashboard as the sole tab at construction time (a cold "Open
+	/// with" start, nothing else in the Shell to go back to) -- as opposed to a warm reopen (see
+	/// <see cref="OnPendingOpen"/>), where Launch is pushed ON TOP of an already-live Dashboard. LaunchPage's
+	/// back button needs this to decide between closing the whole Activity and just returning to Dashboard.</summary>
+	public bool IsStandaloneLaunch => _launchItem != null;
+
+	private const string WarmLaunchRoute = "LaunchPagePush";
+
 	public AppShell()
 	{
 		InitializeComponent();
@@ -19,6 +27,11 @@ public partial class AppShell : Shell
 		Routing.RegisterRoute(nameof(PageManagerPage), typeof(PageManagerPage));
 		Routing.RegisterRoute(nameof(SettingsPage), typeof(SettingsPage));
 		Routing.RegisterRoute(nameof(AboutPage), typeof(AboutPage));
+		// A DIFFERENT route string than the "LaunchPage" ShellContent added below for cold starts: that one is
+		// part of the Shell's own Items tree (a tab), while this one is a standalone push target for the warm
+		// path (OnPendingOpen). Registering the same string both ways (tree route + global RegisterRoute) is a
+		// known source of ambiguous-route resolution in Shell; two distinct names sidesteps the question.
+		Routing.RegisterRoute(WarmLaunchRoute, typeof(LaunchPage));
 
 		// Started by another app's "Open with": go straight to the reader, never through the Dashboard.
 		if (PendingPdfOpen.Peek != null)
@@ -56,11 +69,12 @@ public partial class AppShell : Shell
 		if (_dashboardItem != null && !Items.Contains(_dashboardItem)) Items.Add(_dashboardItem);
 	}
 
+	// Pushes LaunchPage on top of whatever is currently showing (almost always Dashboard, since this only
+	// fires while the app is already warm) instead of importing/opening the file right here. Importing +
+	// probing a PDF is not instant, and before this fix that wait happened with Dashboard still on screen --
+	// from the person's side, "opening a file externally" looked like it opened Dashboard first and only
+	// jumped to the reader a moment later. LaunchPage's own OnAppearing does the actual Consume()+OpenAsync,
+	// identically to the cold-start path above, so there is exactly one place that logic lives.
 	private void OnPendingOpen() =>
-		MainThread.BeginInvokeOnMainThread(async () =>
-		{
-			string? uri = PendingPdfOpen.Consume();
-			PdfOpener? opener = Handler?.MauiContext?.Services.GetService<PdfOpener>();
-			if (uri != null && opener != null) await opener.OpenAsync(uri, external: true);
-		});
+		MainThread.BeginInvokeOnMainThread(() => UiHost.Shell.GoToAsync(WarmLaunchRoute));
 }

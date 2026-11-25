@@ -5,7 +5,17 @@ using Android.OS;
 
 namespace PdfReader;
 
-[Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, LaunchMode = LaunchMode.SingleTop, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
+[Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, LaunchMode = LaunchMode.SingleTop, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density,
+	// Without this, a file manager that opens PDFs with FLAG_ACTIVITY_NEW_DOCUMENT/FLAG_ACTIVITY_MULTIPLE_TASK
+	// (common -- it is how Android's own "recent documents" feature works) gets a BRAND NEW task + Activity +
+	// AppShell instance each time, alongside whichever task the launcher icon uses -- confirmed on-device
+	// 2026-11-25 (dumpsys activity activities showed two live ActivityRecords, same process, two TaskRecords)
+	// after opening two different PDFs externally. Every static "there is exactly one live instance" assumption
+	// in this app (AppShell._live, UiHost's Windows.FirstOrDefault(), PendingPdfOpen's single queue) then breaks:
+	// UiHost.Shell can resolve to the OTHER, backgrounded task's Shell, so opening a file from inside the app
+	// silently navigates a screen the person isn't looking at. DocumentLaunchMode.Never makes Android ignore
+	// those caller flags entirely and always fold into the single existing task, same as a plain VIEW intent.
+	DocumentLaunchMode = DocumentLaunchMode.Never)]
 // Opening a PDF from another app: a file manager's "Open with" (VIEW) or "Share" (SEND) sheet. Two
 // separate filters (not one with two actions) because SEND's data is in ClipData/EXTRA_STREAM, not
 // Intent.Data -- ResolvePendingOpen below reads whichever one actually carries the Uri.

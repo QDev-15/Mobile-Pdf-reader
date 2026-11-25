@@ -55,7 +55,12 @@ public sealed class LaunchPage : ContentPage
 
 	protected override bool OnBackButtonPressed()
 	{
-		Platform.CurrentActivity?.Finish();
+		// Cold start (IsStandaloneLaunch): Launch is the only thing in the Shell, nothing to go "back" to --
+		// closing the Activity is correct, same as before. Warm reopen: Launch was pushed ON TOP of an
+		// already-live Dashboard (see AppShell.OnPendingOpen), so back should just drop back to Dashboard
+		// instead of killing the whole app from under the person.
+		if ((Shell.Current as AppShell)?.IsStandaloneLaunch == true) Platform.CurrentActivity?.Finish();
+		else _ = UiHost.Shell.GoToAsync("//DashboardPage");
 		return true;
 	}
 }
