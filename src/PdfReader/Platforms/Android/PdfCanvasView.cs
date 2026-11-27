@@ -17,6 +17,11 @@ public enum ViewerTool { View, Pen, Marker, Text, Signature }
 
 public enum ReadTheme { Light, Dark, Sepia }
 
+/// <summary>Which end of a settled text selection a finger grabbed to adjust it. Not "first"/"last" by
+/// screen position: it names the underlying field (<c>_selA</c>/<c>_selB</c>) being dragged, which stays
+/// fixed for the length of one drag gesture even if the finger crosses over to the other side.</summary>
+internal enum SelHandle { None, A, B }
+
 /// <summary>
 /// The PDF reading surface: one native view that draws every page of the document as a continuous
 /// vertical strip, with pinch-zoom, pan, fling, double-tap zoom, text selection, search highlights and the
@@ -70,6 +75,7 @@ public sealed class PdfCanvasView : AView
 	private PageText? _selText;
 	private int _selPage = -1, _selA, _selB;
 	private bool _selecting;
+	private SelHandle _draggingHandle;
 
 	// annotation selection / drag
 	private Guid? _selAnn;
@@ -120,7 +126,7 @@ public sealed class PdfCanvasView : AView
 
 	public bool HasTextSelection => _selText != null;
 
-	public string SelectedText => _selText == null ? "" : _selText.Join(_selA, _selB);
+	public string SelectedText => _selText == null ? "" : _selText.JoinChars(_selA, _selB);
 
 	public Annotation? SelectedAnnotation => _selAnn is { } id ? _s?.Annotations.Find(id) : null;
 
@@ -245,6 +251,7 @@ public sealed class PdfCanvasView : AView
 		if (_selText == null) return;
 		_selText = null;
 		_selecting = false;
+		_draggingHandle = SelHandle.None;
 		TextSelectionChanged?.Invoke(false);
 		Invalidate();
 	}
@@ -277,7 +284,7 @@ public sealed class PdfCanvasView : AView
 	public void ApplyMarkup(MarkupKind kind, uint color)
 	{
 		if (_s == null || _selText == null) return;
-		var rects = _selText.RectsFor(_selA, _selB).Select(r => r.Inflate(0.001f, 0.0005f)).ToList();
+		var rects = _selText.RectsForChars(_selA, _selB).Select(r => r.Inflate(0.001f, 0.0005f)).ToList();
 		_s.Annotations.Add(new MarkupAnnotation(Guid.NewGuid(), _selPage, kind, color, rects));
 		ClearTextSelection();
 	}
@@ -292,7 +299,7 @@ public sealed class PdfCanvasView : AView
 		_selText = text;
 		_selPage = page;
 		_selA = 0;
-		_selB = text.Words.Count - 1;
+		_selB = text.Chars.Count - 1;
 		TextSelectionChanged?.Invoke(true);
 		Invalidate();
 	}
@@ -541,7 +548,10 @@ public sealed class PdfCanvasView : AView
 		if (_selText != null && _selPage == page)
 		{
 			_fill.Color = new AColor(unchecked((int)0x553B82F6));
-			foreach (NRect r in _selText.RectsFor(_selA, _selB)) canvas.DrawRect(AnnotationPainter.ToRect(r, pr), _fill);
+			foreach (NRect r in _selText.RectsForChars(_selA, _selB)) canvas.DrawRect(AnnotationPainter.ToRect(r, pr), _fill);
+			// Only once the initial long-press-drag has settled -- while still dragging the tail end live,
+			// a second pair of handles under the finger would just be visual noise.
+			if (!_selecting) DrawSelectionHandles(canvas, pr);
 		}
 
 		// selected annotation outline
@@ -567,6 +577,28 @@ public sealed class PdfCanvasView : AView
 			uint color = marker ? (InkColor & 0x00FFFFFFu) | 0x66000000u : InkColor;
 			AnnotationPainter.DrawLiveStroke(canvas, _liveStroke, marker ? MarkerWidth : PenWidth, color, marker, pr);
 		}
+	}
+
+	/// <summary>The draggable knobs at a settled selection's first/last character, at the same page position
+	/// <see cref="TryHitSelectionHandle"/> hit-tests against.</summary>
+	private void DrawSelectionHandles(Canvas canvas, RectF pr)
+	{
+		if (_selText == null) return;
+		int min = Math.Min(_selA, _selB), max = Math.Max(_selA, _selB);
+		if (min < 0 || max >= _selText.Chars.Count) return;
+		RectF first = AnnotationPainter.ToRect(_selText.Chars[min].Box, pr);
+		RectF last = AnnotationPainter.ToRect(_selText.Chars[max].Box, pr);
+		_fill.SetStyle(Paint.Style.Fill);
+		_fill.Color = new AColor(0x3B, 0x82, 0xF6);
+		DrawHandle(canvas, first.Left, first.Bottom);
+		DrawHandle(canvas, last.Right, last.Bottom);
+	}
+
+	private void DrawHandle(Canvas canvas, float x, float y)
+	{
+		float knob = 6.5f * _density;
+		canvas.DrawRect(x - 1.25f * _density, y, x + 1.25f * _density, y + knob, _fill);
+		canvas.DrawCircle(x, y + knob, knob, _fill);
 	}
 
 	/// <summary>Highlighter thickness as a fraction of the page width.</summary>
@@ -827,9 +859,16 @@ public sealed class PdfCanvasView : AView
 			_multiTouch = false;
 			_scroller.ForceFinished(true);
 			_zoomAnim?.Cancel();
+
+			// A settled selection (bar showing, not mid drag-from-long-press) draws two small handles at its
+			// first/last word; grabbing one lets the user adjust that end without redoing the long press.
+			if (_selText != null && !_selecting && TryHitSelectionHandle(e.GetX(), e.GetY(), out SelHandle handle))
+				_draggingHandle = handle;
 		}
 
-		// Two or more fingers: pinch (handled by the scale detector) plus panning by their centre.
+		// Two or more fingers: pinch (handled by the scale detector) plus panning by their centre. Takes
+		// priority over a handle drag, same as it already does over _selecting below -- a second finger means
+		// the user wants to zoom/pan, not keep adjusting the selection with the first one.
 		if (e.PointerCount > 1 || _scaleDetector.IsInProgress)
 		{
 			if (!_multiTouch)
@@ -837,6 +876,7 @@ public sealed class PdfCanvasView : AView
 				_multiTouch = true;
 				CancelStroke();
 				_selecting = false;
+				_draggingHandle = SelHandle.None;
 				_draggingAnn = false;
 				CancelGestureDetector(e);
 				(_lastCx, _lastCy) = Centroid(e);
@@ -881,6 +921,8 @@ public sealed class PdfCanvasView : AView
 		}
 
 		if (_selecting) return HandleSelectionDrag(e, action);
+
+		if (_draggingHandle != SelHandle.None) return HandleSelectionHandleDrag(e, action);
 
 		if (HandleAnnotationDrag(e, action)) return true;
 
@@ -1070,10 +1112,10 @@ public sealed class PdfCanvasView : AView
 		if (action == MotionEventActions.Move && _selText != null)
 		{
 			NPoint p = ScreenToPageClamped(e.GetX(), e.GetY(), _selPage);
-			int w = _selText.NearestWord(p.X, p.Y);
-			if (w >= 0 && w != _selB)
+			int c = _selText.NearestChar(p.X, p.Y);
+			if (c >= 0 && c != _selB)
 			{
-				_selB = w;
+				_selB = c;
 				Invalidate();
 			}
 		}
@@ -1081,6 +1123,55 @@ public sealed class PdfCanvasView : AView
 		{
 			_selecting = false;
 			_longPressActive = false;
+			if (_selText != null) TextSelectionChanged?.Invoke(true);
+			EndTouch();
+		}
+		return true;
+	}
+
+	// --- adjusting a settled selection from its end handles
+
+	/// <summary>Hit test against the two small handles drawn at a settled selection's first/last character
+	/// (<see cref="DrawSelectionHandles"/>). <paramref name="handle"/> names the field to keep moving for the
+	/// rest of this drag, not which side of the screen was touched -- that way crossing the other end mid-drag
+	/// (dragging the start past the end) behaves the same as native text selection instead of snapping back.</summary>
+	private bool TryHitSelectionHandle(float sx, float sy, out SelHandle handle)
+	{
+		handle = SelHandle.None;
+		if (_selText == null || _selPage < 0) return false;
+		int min = Math.Min(_selA, _selB), max = Math.Max(_selA, _selB);
+		if (min < 0 || max >= _selText.Chars.Count) return false;
+		RectF pr = PageRect(_selPage);
+		RectF first = AnnotationPainter.ToRect(_selText.Chars[min].Box, pr);
+		RectF last = AnnotationPainter.ToRect(_selText.Chars[max].Box, pr);
+		float hitRadius = 24 * _density;
+		bool aIsMin = _selA <= _selB;
+		if (Dist(sx, sy, first.Left, first.Bottom) <= hitRadius) { handle = aIsMin ? SelHandle.A : SelHandle.B; return true; }
+		if (Dist(sx, sy, last.Right, last.Bottom) <= hitRadius) { handle = aIsMin ? SelHandle.B : SelHandle.A; return true; }
+		return false;
+	}
+
+	private static float Dist(float x1, float y1, float x2, float y2)
+	{
+		float dx = x1 - x2, dy = y1 - y2;
+		return MathF.Sqrt(dx * dx + dy * dy);
+	}
+
+	private bool HandleSelectionHandleDrag(MotionEvent e, MotionEventActions action)
+	{
+		if (action == MotionEventActions.Move && _selText != null)
+		{
+			NPoint p = ScreenToPageClamped(e.GetX(), e.GetY(), _selPage);
+			int c = _selText.NearestChar(p.X, p.Y);
+			if (c >= 0)
+			{
+				if (_draggingHandle == SelHandle.A) _selA = c; else _selB = c;
+				Invalidate();
+			}
+		}
+		else if (action is MotionEventActions.Up or MotionEventActions.Cancel)
+		{
+			_draggingHandle = SelHandle.None;
 			if (_selText != null) TextSelectionChanged?.Invoke(true);
 			EndTouch();
 		}
@@ -1180,12 +1271,12 @@ public sealed class PdfCanvasView : AView
 			ShowToast("Không tìm thấy chữ trên trang này.");
 			return;
 		}
-		int word = text.HitTest(nx, ny, PageAspect(page), 0.05f);
-		if (word < 0) return;
+		int ch = text.HitTestChar(nx, ny, PageAspect(page), 0.05f);
+		if (ch < 0) return;
 		DeselectAnnotation();
 		_selText = text;
 		_selPage = page;
-		_selA = _selB = word;
+		_selA = _selB = ch;
 		_selecting = _longPressActive && _fingerDown && !_multiTouch;
 		if (!_selecting) TextSelectionChanged?.Invoke(true);
 		Invalidate();

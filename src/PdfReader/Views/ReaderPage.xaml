@@ -44,7 +44,11 @@
             <!-- Text selection actions -->
             <Border x:Name="SelectionBar" IsVisible="False" HorizontalOptions="Center" VerticalOptions="End" Margin="12,0,12,12"
                     Padding="6" BackgroundColor="#F21F1F1F" StrokeThickness="0" StrokeShape="RoundRectangle 20">
-                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <!-- HorizontalOptions="Center" AND VerticalOptions="Center" here (not just on the Border) matter:
+                     without them, ScrollView defaults to Fill on both axes and measures itself to the full
+                     available width AND height, stretching the Border to cover almost the whole reading
+                     surface instead of hugging the 6 buttons as a compact pill at the bottom. -->
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" HorizontalOptions="Center" VerticalOptions="Center">
                     <HorizontalStackLayout Spacing="2">
                         <Button Text="Sao chép" Clicked="OnCopyClicked" Style="{StaticResource BarButton}" />
                         <Button Text="Tô sáng" Clicked="OnHighlightClicked" Style="{StaticResource BarButton}" />
